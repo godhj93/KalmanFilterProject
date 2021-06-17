@@ -1,0 +1,16 @@
+yolo_model:
+
+  video_file:
+    name: /root/catkin_ws/src/ros_tkdnn/demo/road.mp4 #yolo_test.mp4
+  weights_file:
+    name: /root/catkin_ws/src/ros_tkdnn/build/yolo4_fp32.rt
+
+  threshold:
+    value: 0.5
+  detection_classes:
+    value: 80
+
+  input_mode:
+    value: 0 # if value=1 -> camera
+            # else if value=0 -> video_file
+

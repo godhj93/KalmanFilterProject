@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+    <!-- ROS and network parameter files -->
+    <arg name="network_param_file" default="$(find ros_tkdnn)/config/tkdnn.yaml"/>
+
+    <!-- Load parameters -->
+    <rosparam command="load" file="$(arg network_param_file)"/>
+
+    <node pkg="ros_tkdnn" name="ros_tkdnn" type="ros_tkdnn" respawn="true" output="screen">
+    </node>
+</launch>
