@@ -10,7 +10,7 @@ from ros_tkdnn.msg import yolo_coordinateArray
 import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
 import copy
-
+import time
 
 
 class MultiTargetTracker:
@@ -18,13 +18,14 @@ class MultiTargetTracker:
 	def __init__(self):
 		self.kalman_filter_done = False
 		self.object_state = []
+		self.iter_object_detection = 0
 		# System matrix
-		dt = 1./60
+		self.dt = 1.0/100.0
 		
 		self.A = np.matrix([
-			[1,dt,0,0],
+			[1,self.dt,0,0],
 			[0,1,0,0],
-			[0,0,1,dt],
+			[0,0,1,self.dt],
 			[0,0,0,1]],dtype=np.float32)
 		
 		self.H = np.matrix(
@@ -74,13 +75,11 @@ class MultiTargetTracker:
 			data.results[idx].xmax, #5
 			data.results[idx].ymin, #6
 			data.results[idx].ymax, #7
-			data.results[idx].label+str(ID)
+			data.results[idx].label+str(ID+1)
 			] ,
-			#dtype=np.int32
+			
 
 			))
-
-		
 
 
 	def kalman_filter(self,data):
@@ -131,17 +130,6 @@ class MultiTargetTracker:
 				self.x_pos_estimated = data.results[idx].x_center
 				self.y_pos_estimated = data.results[idx].y_center
 				
-				
-				if self.i <= self.i_max:
-					self.i += 1
-				else:
-					self.i_max = self.i
-				self.label = data.results[idx].label + str(self.i)
-				
-
-				
-
-				
 				# Kalman filter 
 
 				self.x_prediction = self.A * self.x
@@ -166,7 +154,33 @@ class MultiTargetTracker:
 		else:
 			pass
 		
-	
+	def Euclidean(self,prev,current):
+
+		for prev_id, prev_object in enumerate(prev):
+
+			distance_list = []
+			
+			prev_x, prev_y = np.array(prev_object[0],dtype=np.int32), np.array(prev_object[1],dtype=np.int32)
+
+			for current_id, current_object in enumerate(current):
+
+				current_x, current_y = np.array(current_object[0], dtype=np.int32), np.array(current_object[1], dtype=np.int32)
+
+				l2_distance = np.sqrt((current_x-prev_x)**2 + (current_y-prev_y)**2)
+
+				distance_list.append(l2_distance)
+
+			# rospy.loginfo(distance_list)
+			# print('min', np.argmin(distance_list))
+			current_id = np.argmin(distance_list)
+			
+			current[current_id][-1] = prev[prev_id][-1]
+
+
+
+			
+
+
 
 
 	def image(self,data):
@@ -177,14 +191,14 @@ class MultiTargetTracker:
 			y_min = np.array(states[6],dtype=np.int32)
 			label = states[8]
 		
-			color = (0,0,255)#(np.random.randint(255),np.random.randint(255),np.random.randint(255))
+			color = (0,150,255)#(np.random.randint(255),np.random.randint(255),np.random.randint(255))
 
 			#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (pos_x,pos_y), 5, color, -1)
 			cv2.putText(
 				self.cv_rgb_image,
 				label, 
 				(x_min,y_min-10),
-				 cv2.FONT_HERSHEY_SIMPLEX, 1, color, 4, cv2.LINE_AA)
+				 cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
 
 		cv2.imshow('window',self.cv_rgb_image)
 
@@ -205,9 +219,21 @@ if __name__ =='__main__':
 	MTT = MultiTargetTracker()
 	rate = rospy.Rate(100)
 
+	prev_objects = MTT.object_state
+
 	while not rospy.is_shutdown():
 
-		#print(MTT.object_state)
+		try:
+			current_objects = MTT.object_state		
+
+			MTT.Euclidean(prev_objects,current_objects)
+				
+			prev_objects = current_objects
+
+		except:
+			print("Erorr")
+
+
 		rate.sleep()
 
 	
