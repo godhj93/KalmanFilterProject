@@ -222,7 +222,7 @@ class DetectionNN {
                   
                     //std::cout << std::fixed << std::setprecision(6)<<b.cl<<" "<<Yx<<" "<<Yy<<" "<<Yw<<" "<<Yh<<"\n";
                     // draw rectangle
-                    if(det_class=="car" || det_class=="truck"){
+                    if(det_class=="car"){
                     cv::rectangle(frames[bi], cv::Point(x0, y0), cv::Point(x1, y1), colors[b.cl], 2); 
 
                     // draw label
