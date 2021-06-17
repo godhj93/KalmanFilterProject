@@ -82,102 +82,77 @@ class MultiTargetTracker:
 			))
 
 
-	def kalman_filter(self,data):
+	def kalman_filter(self,object_states):
+
+		self.kalman_states = []
+		for object_state in object_states:
+			# Get estimated position with gaussian noise
+			
+			pos_x = np.array(object_state[0],dtype=np.float32).item()
+			pos_y = np.array(object_state[1],dtype=np.float32).item()
+			label = object_state[-1]
+
+			self.x_pos_estimated = pos_x
+			self.y_pos_estimated = pos_y
+			
+			# Kalman filter 
+
+			self.x_prediction = self.A * self.x
+
+			self.P_prediction = self.A * self.P * np.transpose(self.A) + self.Q
+
+			self.K = self.P_prediction * np.transpose(self.H) * np.linalg.inv(self.H * self.P_prediction * np.transpose(self.H) + self.R)
+
+			self.Z = np.transpose(np.matrix([self.x_pos_estimated, self.y_pos_estimated]))
+
+			self.x = self.x_prediction + self.K * (self.Z - self.H * self.x_prediction)
+
+			self.P = self.P_prediction - self.K * self.H * self.P_prediction
+
+
+
+			self.kalman_states.append((self.x[0],self.x[2],label))
+
+		return np.array(self.kalman_states)
 		
-
-		if  len(data.results) > 0 :
 			
 		
-			# idx = 0
-			# self.pos_array = []
-
-			# # Get estimated position with gaussian noise
-			# self.x_pos_estimated = data.results[idx].x_center
-			# self.y_pos_estimated = data.results[idx].y_center
-			# self.label = data.results[idx].label + '1'
-
-			
-			# # Kalman filter 
-			# print(self.x)
-			# self.x_prediction = self.A * self.x
-
-			# self.P_prediction = self.A * self.P * np.transpose(self.A) + self.Q
-
-			# self.K = self.P_prediction * np.transpose(self.H) * np.linalg.inv(self.H * self.P_prediction * np.transpose(self.H) + self.R)
-
-			# self.Z = np.transpose(np.matrix([self.x_pos_estimated, self.y_pos_estimated]))
-
-			# self.x = self.x_prediction + self.K * (self.Z - self.H * self.x_prediction)
-
-			# self.P = self.P_prediction - self.K * self.H * self.P_prediction
-
-			# self.pos_array.append(self.x)
-			# #self.pos_array.append((self.x_pos_estimated,self.y_pos_estimated,self.label))
-						
-			# #self.x = self.pos_array
-
-			# self.firstRun = False
-
-
-			
-			
-
-			self.pos_array = []
-			for idx in range(len(data.results)):
-				
-				# Get estimated position with gaussian noise
-				
-				self.x_pos_estimated = data.results[idx].x_center
-				self.y_pos_estimated = data.results[idx].y_center
-				
-				# Kalman filter 
-
-				self.x_prediction = self.A * self.x
-
-				self.P_prediction = self.A * self.P * np.transpose(self.A) + self.Q
-
-				self.K = self.P_prediction * np.transpose(self.H) * np.linalg.inv(self.H * self.P_prediction * np.transpose(self.H) + self.R)
-
-				self.Z = np.transpose(np.matrix([self.x_pos_estimated, self.y_pos_estimated]))
-
-				self.x = self.x_prediction + self.K * (self.Z - self.H * self.x_prediction)
-
-				self.P = self.P_prediction - self.K * self.H * self.P_prediction
-
-				#self.pos_array.append(self.x)
-				self.pos_array.append((self.x_pos_estimated,1,self.y_pos_estimated))
-				
-				self.firstRun = False
-
-
-
-		else:
-			pass
 		
 	def Euclidean(self,prev,current):
 
+		distance_list = []
+
 		for prev_id, prev_object in enumerate(prev):
 
-			distance_list = []
-			
-			prev_x, prev_y = np.array(prev_object[0],dtype=np.int32), np.array(prev_object[1],dtype=np.int32)
+			prev_x, prev_y = np.array(prev_object[0],dtype=np.float32), np.array(prev_object[1],dtype=np.float32)
 
 			for current_id, current_object in enumerate(current):
 
-				current_x, current_y = np.array(current_object[0], dtype=np.int32), np.array(current_object[1], dtype=np.int32)
+				current_x, current_y = np.array(current_object[0], dtype=np.float32), np.array(current_object[1], dtype=np.float32)
 
 				l2_distance = np.sqrt((current_x-prev_x)**2 + (current_y-prev_y)**2)
 
 				distance_list.append(l2_distance)
 
-			# rospy.loginfo(distance_list)
-			# print('min', np.argmin(distance_list))
+
+
 			current_id = np.argmin(distance_list)
-			
+
 			current[current_id][-1] = prev[prev_id][-1]
 
 
 
+			distance_list = []	
+			# try:
+			# 	current_id = np.argmin(distance_list)
+			# except:
+			# 	print('line144')
+			
+			#print(current_id)
+			#current[current_id][-1] = prev[prev_id][-1]
+
+
+		return distance_list
 			
 
 
@@ -189,11 +164,19 @@ class MultiTargetTracker:
 		for states in self.object_state:
 			x_min = np.array(states[4],dtype=np.int32)
 			y_min = np.array(states[6],dtype=np.int32)
+
+			#for value error
+
+			x_center = np.array(states[0], dtype=np.float32)
+			y_center = np.array(states[1], dtype=np.float32)
+
+			x_center = np.array(x_center, dtype=np.int32)
+			y_center = np.array(y_center, dtype=np.int32)
 			label = states[8]
 		
 			color = (0,150,255)#(np.random.randint(255),np.random.randint(255),np.random.randint(255))
 
-			#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (pos_x,pos_y), 5, color, -1)
+			#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (x_center,y_center), 5, color, -1)
 			cv2.putText(
 				self.cv_rgb_image,
 				label, 
@@ -213,25 +196,48 @@ class MultiTargetTracker:
 
 
 if __name__ =='__main__':
-
-
 	
 	MTT = MultiTargetTracker()
 	rate = rospy.Rate(100)
 
-	prev_objects = MTT.object_state
+	prev_objects = MTT.object_state # x,y,label
 
 	while not rospy.is_shutdown():
 
-		try:
-			current_objects = MTT.object_state		
+		print("========================")
+	
+		current_objects = MTT.object_state		
 
-			MTT.Euclidean(prev_objects,current_objects)
-				
-			prev_objects = current_objects
+		kalman_states = MTT.kalman_filter(current_objects)
 
-		except:
-			print("Erorr")
+
+		for item_kalman , item_current in zip(kalman_states, current_objects):
+
+			# print("==")
+			# print(item_current)
+			
+			
+			item_current[0] = copy.deepcopy(item_kalman[0].item())
+			item_current[1] = copy.deepcopy(item_kalman[1].item())
+
+			
+			
+			
+
+			
+		
+		
+
+		l2_distances = MTT.Euclidean(prev_objects,current_objects)
+		
+		
+		
+		
+		prev_objects = current_objects
+		
+		
+
+	
 
 
 		rate.sleep()
