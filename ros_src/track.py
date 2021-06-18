@@ -23,6 +23,8 @@ class Tracker:
 		self.bridge = CvBridge()
 
 		self.object_state = []
+		self.kalman_boxes = []
+		self.firstRun = 0
 
 		# Kalman Filter 
 
@@ -49,7 +51,7 @@ class Tracker:
 
 
 		self.kf.R[2:,2:] *= 10
-		self.kf.P[4:,4:] *= 100
+		self.kf.P[4:,4:] *= 10
 		#self.kf.P *= 10.
 		self.kf.Q[-1,-1] *= 0.1
 		self.kf.Q[4:,4:] *= 0.1
@@ -60,32 +62,107 @@ class Tracker:
 
 	def object_detection(self,data):
 
-		self.object_state = []
-		for ID,idx in enumerate(range(len(data.results))):
+		if self.firstRun == 0 :
+			# Get object information
+			self.object_state = []
+			for ID, idx in enumerate(range(len(data.results))):
 
-			u = data.results[idx].x_center
-			v = data.results[idx].y_center
-			s = data.results[idx].w * data.results[idx].h
-			r = float(data.results[idx].w) / float(data.results[idx].h)
+				u = data.results[idx].x_center
+				v = data.results[idx].y_center
+				s = data.results[idx].w * data.results[idx].h
+				r = float(data.results[idx].w) / float(data.results[idx].h)
+				
+				self.object_state.append(
+				[
+					np.array([u,v,s,r,ID])	
+				])
+				
+			# Kalman filter
 
-			self.object_state.append(
-			[
-				np.array([u,v,s,r])	
-			])
+			for states in self.object_state:
+
+				u,v,s,r,ID = states[0][0],states[0][1],states[0][2],states[0][3],states[0][4]
+
+				uu, vv, ss, rr, ID = self.kalman(states)
+
+				# save predicted boxes
+
+				self.kalman_boxes.append(np.array([uu, vv, ss, rr , ID]))
+
+				self.draw(u,v,s,r,255,0,0)
+				self.draw(uu,vv,ss,rr,0,255,0)
+
+				self.iou([u,v,s,r],[uu,vv,ss,rr])
+
+			self.firstRun +=1 
+
+		else:
+			# Get object information
+			self.object_state = []
+			for ID, idx in enumerate(range(len(data.results))):
+
+				u = data.results[idx].x_center
+				v = data.results[idx].y_center
+				s = data.results[idx].w * data.results[idx].h
+				r = float(data.results[idx].w) / float(data.results[idx].h)
+				
+				self.object_state.append(
+				[
+					np.array([u,v,s,r,ID])	
+				])
+			
+
+			#IOU matching
+			print("===")
+
+			iou_table = np.zeros([len(self.kalman_boxes), len(self.object_state)])
+
+			for idx_object,item_object in enumerate(self.object_state):
+				for idx_kalman,item_kalman in enumerate(self.kalman_boxes):
+					
+					u_object = item_object[0][0]
+					v_object = item_object[0][1]
+					s_object = item_object[0][2]
+					r_object = item_object[0][3]
+
+					u_kalman = item_kalman[0]
+					v_kalman = item_kalman[1]
+					s_kalman = item_kalman[2]
+					r_kalman = item_kalman[3]
+
+					print(iou_table.shape)
+					iou_table[idx_kalman][idx_object] = self.iou(
+												[u_object,v_object,s_object,r_object],
+												[u_kalman,v_kalman,s_kalman,r_kalman]
+												)
+					
+
+					print(iou_table)
 
 
-		for states in self.object_state:
+			# After matching, clear list
+			self.kalman_boxes = []
 
-			u,v,s,r = states[0][0],states[0][1],states[0][2],states[0][3]
+			# Kalman filter
 
-			uu, vv, ss, rr = self.kalman(states)
+			for states in self.object_state:
 
-			self.draw(u,v,s,r)
-			self.draw(uu,vv,ss,rr)
+				u,v,s,r,ID = states[0][0],states[0][1],states[0][2],states[0][3],states[0][4]
 
-			self.iou([u,v,s,r],[uu,vv,ss,rr])
+				uu, vv, ss, rr, ID = self.kalman(states)
 
+				# save predicted boxes
 
+				self.kalman_boxes.append(np.array([uu, vv, ss, rr , ID]))
+
+				self.draw(u,v,s,r,255,0,0)
+				self.draw(uu,vv,ss,rr,0,255,0)
+
+				self.iou([u,v,s,r],[uu,vv,ss,rr])
+
+			
+
+		
 
 
 
@@ -99,12 +176,12 @@ class Tracker:
 		box_a_area = np.abs(xmax_a-xmin_a) * np.abs(ymax_a-ymin_a)
 		box_b_area = np.abs(xmax_b-xmin_b) * np.abs(ymax_b-ymin_b)
 		
-		print(xmin_a)
+		
 		iou_xmin = np.max([xmin_a,xmin_b])
-		iou_ymin = np.min([ymin_a,ymin_b])
+		iou_ymin = np.max([ymin_a,ymin_b])
 
 		iou_xmax = np.min([xmax_a,xmax_b])
-		iou_ymax = np.max([ymax_a,ymax_b])
+		iou_ymax = np.min([ymax_a,ymax_b])
 
 		iou_width = np.abs(iou_xmax-iou_xmin)
 		iou_height = np.abs(iou_ymax-iou_ymin)
@@ -112,7 +189,7 @@ class Tracker:
 		overlapping_region = iou_width * iou_height
 		combined_region = box_a_area + box_b_area - overlapping_region
 
-		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_xmin),int(iou_ymin)), (int(iou_xmax),int(iou_ymax)), (0,0,255),-1)
+		#self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_xmin),int(iou_ymin)), (int(iou_xmax),int(iou_ymax)), (255,255,255),-1)
 
 		return float(overlapping_region)/float(combined_region)
 
@@ -133,14 +210,14 @@ class Tracker:
 
 
 
-	def draw(self, uu,vv,ss,rr):
+	def draw(self, uu,vv,ss,rr,blue,green,red):
 
 		xmin, ymin, xmax, ymax = self.get_box_point(uu,vv,ss,rr)
 
 		#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (int(u),int(v)), 5 , (0,255,0), -1)
 
 		
-		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (0,0,255))
+		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red))
 		#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (int(self.kf.x[0]),int(self.kf.x[1])), 5 , (0,0,255), -1)
 		cv2.imshow('window', self.cv_rgb_image)
 		cv2.waitKey(3)
@@ -149,11 +226,7 @@ class Tracker:
 
 		self.cv_rgb_image = self.bridge.imgmsg_to_cv2(data,'bgr8')
 
-		
-		
-		# cv2.imshow('window', self.cv_rgb_image)
-		# cv2.waitKey(3)
-
+	
 	def kalman(self, states):
 
 		
@@ -161,6 +234,7 @@ class Tracker:
 		v = states[0][1]
 		s = states[0][2]
 		r = states[0][3]
+		ID = states[0][4]
 
 	
 		
@@ -179,7 +253,7 @@ class Tracker:
 		elif rr < 0:
 			rr = 0
 
-		return uu,vv,ss,rr
+		return uu,vv,ss,rr,ID
 		
 
 

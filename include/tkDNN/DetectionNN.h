@@ -224,7 +224,7 @@ class DetectionNN {
                     // draw rectangle
                     //if(det_class=="car" || det_class=="truck"){
                     if(det_class=="car" || det_class=="truck"){
-                    cv::rectangle(frames[bi], cv::Point(x0, y0), cv::Point(x1, y1), colors[b.cl], 2); 
+                   // cv::rectangle(frames[bi], cv::Point(x0, y0), cv::Point(x1, y1), colors[b.cl], 2); 
 
                     // draw label
                    // cv::Size text_size = getTextSize(det_class, cv::FONT_HERSHEY_SIMPLEX, font_scale, thickness, &baseline);
