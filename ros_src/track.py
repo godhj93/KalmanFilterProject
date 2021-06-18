@@ -12,6 +12,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import copy
 import time
 from filterpy.kalman import KalmanFilter
+from scipy.optimize import linear_sum_assignment
 
 class Tracker:
 
@@ -25,6 +26,8 @@ class Tracker:
 		self.object_state = []
 		self.kalman_boxes = []
 		self.firstRun = 0
+
+		self.IDnum = 0
 
 		# Kalman Filter 
 
@@ -60,7 +63,11 @@ class Tracker:
 
 
 
+
+
 	def object_detection(self,data):
+
+		
 
 		if self.firstRun == 0 :
 			# Get object information
@@ -74,8 +81,10 @@ class Tracker:
 				
 				self.object_state.append(
 				[
-					np.array([u,v,s,r,ID])	
+					np.array([u,v,s,r,self.IDnum])	
 				])
+
+				self.IDnum += 1
 				
 			# Kalman filter
 
@@ -83,14 +92,14 @@ class Tracker:
 
 				u,v,s,r,ID = states[0][0],states[0][1],states[0][2],states[0][3],states[0][4]
 
-				uu, vv, ss, rr, ID = self.kalman(states)
+				uu, vv, ss, rr, ID_kalman = self.kalman(states)
 
 				# save predicted boxes
 
 				self.kalman_boxes.append(np.array([uu, vv, ss, rr , ID]))
 
-				self.draw(u,v,s,r,255,0,0)
-				self.draw(uu,vv,ss,rr,0,255,0)
+				self.draw(u,v,s,r,ID,255,0,0)
+				self.draw(uu,vv,ss,rr,ID_kalman,0,255,0)
 
 				self.iou([u,v,s,r],[uu,vv,ss,rr])
 
@@ -108,14 +117,16 @@ class Tracker:
 				
 				self.object_state.append(
 				[
-					np.array([u,v,s,r,ID])	
+					np.array([u,v,s,r,self.IDnum])	
 				])
+
+				self.IDnum += 1
 			
 
 			#IOU matching
-			print("===")
+			
 
-			iou_table = np.zeros([len(self.kalman_boxes), len(self.object_state)])
+			iou_table = np.zeros(shape=(len(self.kalman_boxes), len(self.object_state)))
 
 			for idx_object,item_object in enumerate(self.object_state):
 				for idx_kalman,item_kalman in enumerate(self.kalman_boxes):
@@ -124,21 +135,53 @@ class Tracker:
 					v_object = item_object[0][1]
 					s_object = item_object[0][2]
 					r_object = item_object[0][3]
+					ID_object = item_object[0][4]
 
 					u_kalman = item_kalman[0]
 					v_kalman = item_kalman[1]
 					s_kalman = item_kalman[2]
 					r_kalman = item_kalman[3]
+					ID_kalman = item_kalman[4]
 
-					print(iou_table.shape)
+					
 					iou_table[idx_kalman][idx_object] = self.iou(
 												[u_object,v_object,s_object,r_object],
 												[u_kalman,v_kalman,s_kalman,r_kalman]
 												)
 					
 
-					print(iou_table)
+			#print(-iou_table)
+			row_ind, col_ind = linear_sum_assignment(-iou_table)
 
+			optimal_assignment = iou_table[row_ind,col_ind]
+
+			#print(optimal_assignment)
+			
+			print("==")
+			print(len(optimal_assignment))
+			print('iou table',iou_table)
+			print('optimal',optimal_assignment)
+
+			print("shape",iou_table.shape)
+			for idx in range(len(optimal_assignment)):
+				
+				row, col = np.where(iou_table == optimal_assignment[idx])
+				print(row[0],col[0])
+
+				ID_kalman = self.kalman_boxes[row[0]][4]
+				self.object_state[col[0]][0][-1] = ID_kalman
+
+		
+				
+				
+				
+				
+#				print(iou_table[idx])
+				# print(np.where(iou_table[idx] == optimal_assignment[idx]))
+				# print(np.where(iou_table[idx] == optimal_assignment[idx])[0])
+				# print(np.where(iou_table[idx] == optimal_assignment[idx])[0][0])
+				#self.object_state[matched_id][0][-1] = idx
+							
 
 			# After matching, clear list
 			self.kalman_boxes = []
@@ -149,14 +192,16 @@ class Tracker:
 
 				u,v,s,r,ID = states[0][0],states[0][1],states[0][2],states[0][3],states[0][4]
 
-				uu, vv, ss, rr, ID = self.kalman(states)
+				uu, vv, ss, rr, ID_kalman = self.kalman(states)
 
 				# save predicted boxes
 
 				self.kalman_boxes.append(np.array([uu, vv, ss, rr , ID]))
 
-				self.draw(u,v,s,r,255,0,0)
-				self.draw(uu,vv,ss,rr,0,255,0)
+				self.draw(u,v,s,r,ID,255,0,0)
+				self.draw(uu,vv,ss,rr,ID_kalman,0,255,0)
+				cv2.imshow('window', self.cv_rgb_image)
+				cv2.waitKey(3)
 
 				self.iou([u,v,s,r],[uu,vv,ss,rr])
 
@@ -210,17 +255,19 @@ class Tracker:
 
 
 
-	def draw(self, uu,vv,ss,rr,blue,green,red):
+	def draw(self, uu,vv,ss,rr,ID,blue,green,red):
 
-		xmin, ymin, xmax, ymax = self.get_box_point(uu,vv,ss,rr)
+		xmin, ymin, xmax, ymax = self.get_box_point(uu,vv,ss,rr)		
+		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red))
 
-		#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (int(u),int(v)), 5 , (0,255,0), -1)
+		cv2.putText(
+				self.cv_rgb_image,
+				str(ID), 
+				(int(xmin),int(ymin)-10),
+				 cv2.FONT_HERSHEY_SIMPLEX, 1, (blue,green,red), 2, cv2.LINE_AA)
 
 		
-		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red))
-		#self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (int(self.kf.x[0]),int(self.kf.x[1])), 5 , (0,0,255), -1)
-		cv2.imshow('window', self.cv_rgb_image)
-		cv2.waitKey(3)
+		
 
 	def get_image(self, data):
 
@@ -270,6 +317,7 @@ class Tracker:
 if __name__=='__main__':
 
 	Tracker()
+
 	rospy.spin()
 
 	
