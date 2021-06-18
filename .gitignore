@@ -1,5 +1,8 @@
 *~
+core
 build/
+*.mp4
+*.webm
 .vscode/
 *.bin
 *.pyc

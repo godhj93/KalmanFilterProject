@@ -77,7 +77,7 @@ class MultiTargetTracker:
 			data.results[idx].xmax, #5
 			data.results[idx].ymin, #6
 			data.results[idx].ymax, #7
-			data.results[idx].label+str(ID+1)
+			data.results[idx].label
 			] ,
 			
 
@@ -99,8 +99,8 @@ class MultiTargetTracker:
 		pos_y = np.array(object_state[1],dtype=np.float32).item()
 		label = object_state[-1]
 
-		self.x_pos_estimated = pos_x + np.random.normal(0,10)
-		self.y_pos_estimated = pos_y + np.random.normal(0,10)
+		self.x_pos_estimated = pos_x #+ np.random.normal(0,10)
+		self.y_pos_estimated = pos_y #+ np.random.normal(0,10)
   		
 		# Kalman filter 
 
@@ -146,6 +146,8 @@ class MultiTargetTracker:
 
 			distance_list = []	
 
+	
+
 
 	def image(self,data):
 		
@@ -155,8 +157,8 @@ class MultiTargetTracker:
 			# x_min = np.array(states[4],dtype=np.int32)
 			# y_min = np.array(states[6],dtype=np.int32)
 
-			# #for value error
-			print(kalman_state)
+			# To fix value error
+			
 			x_center = np.array(states[0], dtype=np.float32)
 			y_center = np.array(states[1], dtype=np.float32)
 			x_center = np.array(x_center, dtype=np.int32)
@@ -167,7 +169,7 @@ class MultiTargetTracker:
 			x_center_estimated = np.array(kalman_state[0], dtype=np.int32)
 			y_center_estimated = np.array(kalman_state[1], dtype=np.int32)
 			
-			print(x_center,y_center, x_center_estimated,y_center_estimated)
+			
 			label = states[8]
 		
 			color_red = (0,0,255)#(np.random.randint(255),np.random.randint(255),np.random.randint(255))
@@ -223,7 +225,7 @@ if __name__ =='__main__':
 
 		MTT.kalman_state = kalman_prediction_list
 
-		MTT.Euclidean(prev_objects,current_objects)
+		MTT.Euclidean(prev_objects,MTT.kalman_state)
 		
 		# for item in current_objects:
 			
