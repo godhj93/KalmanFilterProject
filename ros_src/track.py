@@ -51,7 +51,7 @@ class KalmanBoxTracker:
 
 		self.kf.R[2:,2:] *= 10
 		self.kf.P[4:,4:] *= 10
-		self.kf.P *= 10.
+		self.kf.P *= 1000.
 		self.kf.Q[-1,-1] *= 0.1
 		self.kf.Q[4:,4:] *= 0.1
 
@@ -199,13 +199,11 @@ class Tracker:
 				
 				row, col = np.where(iou_table == optimal_assignment[idx])
 
-			# 	# print("!!")
-			# 	# print(row,col)
-			# 	# print('optmal',optimal_assignment)
-			# 	#print(self.kalman_tracks_new[col[0]], "==>" ,self.kalman_tracks[row[0]])
-				
-			# 	#print(self.kalman_tracks_new[col[0]])
 				u,v,s,r = self.kalman_tracks_new[col[0]].load_z()
+
+				uu,vv,ss,rr = self.kalman_tracks_new[col[0]].prediction(u,v,s,r)				
+
+				self.draw(uu,vv,ss,rr,'car_kalman' + str(self.kalman_tracks_new[col[0]].id),0,255,0)
 				
 				
 
