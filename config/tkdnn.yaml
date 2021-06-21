@@ -1,7 +1,7 @@
 yolo_model:
 
   video_file:
-    name: /root/catkin_ws/src/ros_tkdnn/demo/road.mp4 #yolo_test.mp4
+    name: /root/catkin_ws/src/ros_tkdnn/demo/road4.mp4 #yolo_test.mp4
   weights_file:
     name: /root/catkin_ws/src/ros_tkdnn/build/yolo4_fp32.rt
 

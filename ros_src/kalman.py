@@ -11,243 +11,222 @@ import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
 import copy
 import time
+from filterpy.kalman import KalmanFilter
+from scipy.optimize import linear_sum_assignment
 
 
-class MultiTargetTracker:
+
+def convert_bbox_to_z(bbox):
+  """
+  Takes a bounding box in the form [x1,y1,x2,y2] and returns z in the form
+    [x,y,s,r] where x,y is the centre of the box and s is the scale/area and r is
+    the aspect ratio
+  """
+  w = bbox[2] - bbox[0]
+  h = bbox[3] - bbox[1]
+  x = bbox[0] + w/2.
+  y = bbox[1] + h/2.
+  s = w * h    #scale is just area
+  r = w / float(h)
+  return np.array([x, y, s, r]).reshape((4, 1))
+
+
+def convert_x_to_bbox(x,score=None):
+  """
+  Takes a bounding box in the centre form [x,y,s,r] and returns it in the form
+    [x1,y1,x2,y2] where x1,y1 is the top left and x2,y2 is the bottom right
+  """
+  w = np.sqrt(x[2] * x[3])
+  h = x[2] / w
+  if(score==None):
+    return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.]).reshape((1,4))
+  else:
+    return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.,score]).reshape((1,5))
+
+
+class Tracker:
 
 	def __init__(self):
-		self.kalman_filter_done = False
-		self.object_state = []
-		self.kalman_state = []
-		self.iter_object_detection = 0
-		# System matrix
-		self.dt = 1.0/100.0
-		
-		self.A = np.matrix([
-			[1,self.dt,0,0],
-			[0,1,0,0],
-			[0,0,1,self.dt],
-			[0,0,0,1]],dtype=np.float32)
-		
-		self.H = np.matrix(
-			[[1,0,0,0],
-			[0,0,1,0]])
 
-		# error covariance and other things
-		self.Q = 1.0*np.eye(4)
-
-		R = 5
-		self.R = np.matrix(
-			[[R,0],
-			[0,R]])
-
-		self.P = 100*np.eye(4)
-
-		# initial guess state variable x = [x_pos,x_vel,y_pos,y_vel]'
-		self.x = np.transpose(np.matrix([0,0,0,0]))
-		
-		self.pos_array = []
-		# initialize ros
-		rospy.init_node('kalman_filter', anonymous=True)
-		self.yolo_sub = rospy.Subscriber("/yolo_output",yolo_coordinateArray,self.object_detection)
-		self.image_sub = rospy.Subscriber("video/image",Image,self.image)
-
-
-		# debug parameter
+		rospy.init_node('tracker', anonymous = True)
+		self.yolo_sub = rospy.Subscriber("/yolo_output",yolo_coordinateArray, self.object_detection)
+		self.image_sub = rospy.Subscriber("video/image",Image,self.get_image)
 		self.bridge = CvBridge()
-		self.i = 1
-		self.i_max = 1
-		self.firstRun = True
 
-
-	def object_detection(self, data):
-
-		
-		# make sure the number of results
+		self.kalman_history = [] 
 		self.object_state = []
-		for ID,idx in enumerate(range(len(data.results))):
+		self.kalman_boxes = []
+		self.firstRun = 0
 
+		self.IDnum = 0
+
+		# Kalman Filter 
+
+		self.kf = KalmanFilter(dim_x=7, dim_z=4)
+
+		self.kf.F = np.array([
+			[1,0,0,0,1,0,0],
+			[0,1,0,0,0,1,0],
+			[0,0,1,0,0,0,1],
+			[0,0,0,1,0,0,0],
+			[0,0,0,0,1,0,0],
+			[0,0,0,0,0,1,0],
+			[0,0,0,0,0,0,1]
+			])
+
+		self.kf.H = np.array([
+			[1,0,0,0,0,0,0],
+			[0,1,0,0,0,0,0],
+			[0,0,1,0,0,0,0],
+			[0,0,0,1,0,0,0]
+			])
+
+
+		self.kf.R[2:,2:] *= 10.
+		self.kf.P[4:,4:] *= 1000.
+		self.kf.P *= 10.
+		self.kf.Q[-1,-1] *= 0.01
+		self.kf.Q[4:,4:] *= 0.01
+
+		self.kf.x[:4] = convert_bbox_to_z(bbox)
+
+		self.time_since_update = 0
+		self.id = KalmanBoxTracker.count
+		KalmanBoxTracker.count += 1
+		self.history = []
+		self.hits = 0
+		self.hit_streak = 0
+		self.age = 0
+
+	def update(self,bbox):
+
+		self.time_since_update = 0
+		self.history = []
+		self.hits += 1
+		self.hit_streak += 1
+		self.kf.update(convert_bbox_to_z(bbox))
+
+	def predict(self):
+
+		if((self.kf.x[6]+self.kf.x[2])<=0):
+			self.kf,x[6] *= 0.
+
+		self.kf.predict()
+		self.age += 1
+
+		if(self.time_since_update > 0):
+			self.hit_streak = 0
+
+		self.time_since_update+=1
+		self.history.append(convert_x_to_bbox(self.kf.x))
+
+		return self.history[-1]
+
+	def get_state(self):
+
+		return convert_x_to_bbox(self.kf.x)
+
+	def object_detection(self,data):
+
+		self.object_state = []
+		for ID, idx in enumerate(range(len(data.results))):
+
+			u = data.results[idx].x_center
+			v = data.results[idx].y_center
+			s = data.results[idx].w * data.results[idx].h
+			r = float(data.results[idx].w) / float(data.results[idx].h)
+			confidence = data.results[idx].confidence
 			self.object_state.append(
-			  [
-			data.results[idx].x_center, #0
-			data.results[idx].y_center, #1
-			data.results[idx].w, # 2
-			data.results[idx].h, #3
-			data.results[idx].xmin, #4
-			data.results[idx].xmax, #5
-			data.results[idx].ymin, #6
-			data.results[idx].ymax, #7
-			data.results[idx].label
-			] ,
-			
+			[
+				[u,v,s,r,self.IDnum,confidence]
+			])
 
-			)
+			self.IDnum += 1
 
 
-	def kalman_filter(self,prev_state,object_state):
-	
-		# Get estimated position with gaussian noise
-		
-		prev_x = prev_state[0]
-		prev_y = prev_state[1]
+		for states in self.object_state:
+			uu,vv,ss,rr, kalman_ID =self.kalman(states)
 
-		self.x[0] = prev_x
-		self.x[2] = prev_y
-		
+			self.draw(uu,vv,ss,rr,kalman_ID,255,255,255)
 
-		pos_x = np.array(object_state[0],dtype=np.float32).item()
-		pos_y = np.array(object_state[1],dtype=np.float32).item()
-		label = object_state[-1]
-
-		self.x_pos_estimated = pos_x #+ np.random.normal(0,10)
-		self.y_pos_estimated = pos_y #+ np.random.normal(0,10)
-  		
-		# Kalman filter 
-
-		self.x_prediction = self.A * self.x
-
-		self.P_prediction = self.A * self.P * np.transpose(self.A) + self.Q
-
-		self.K = self.P_prediction * np.transpose(self.H) * np.linalg.inv(self.H * self.P_prediction * np.transpose(self.H) + self.R)
-
-		self.Z = np.transpose(np.matrix([self.x_pos_estimated, self.y_pos_estimated]))
-
-		self.x = self.x_prediction + self.K * (self.Z - self.H * self.x_prediction)
-
-		self.P = self.P_prediction - self.K * self.H * self.P_prediction
-
-		return [self.x[0].item(),self.x[2].item(),label]
-		
-			
-		
-		
-	def Euclidean(self,prev,current):
-
-		distance_list = []
-
-		for prev_id, prev_object in enumerate(prev):
-
-			prev_x, prev_y = np.array(prev_object[0],dtype=np.float32), np.array(prev_object[1],dtype=np.float32)
-
-			for current_id, current_object in enumerate(current):
-
-				current_x, current_y = np.array(current_object[0], dtype=np.float32), np.array(current_object[1], dtype=np.float32)
-
-				l2_distance = np.sqrt((current_x-prev_x)**2 + (current_y-prev_y)**2)
-
-				distance_list.append(l2_distance)
-
-
-			try:
-				current_id = np.argmin(distance_list)
-				current[current_id][-1] = prev[prev_id][-1]
-			except:
-				rospy.logerr("No datalist")
-
-			distance_list = []	
-
-	
-
-
-	def image(self,data):
-		
-		self.cv_rgb_image = self.bridge.imgmsg_to_cv2(data,'bgr8')
-
-		for states, kalman_state in zip(self.object_state, self.kalman_state):
-			# x_min = np.array(states[4],dtype=np.int32)
-			# y_min = np.array(states[6],dtype=np.int32)
-
-			# To fix value error
-			
-			x_center = np.array(states[0], dtype=np.float32)
-			y_center = np.array(states[1], dtype=np.float32)
-			x_center = np.array(x_center, dtype=np.int32)
-			y_center = np.array(y_center, dtype=np.int32)
-
-			x_center_estimated = np.array(kalman_state[0], dtype=np.float32)
-			y_center_estimated = np.array(kalman_state[1], dtype=np.float32)
-			x_center_estimated = np.array(kalman_state[0], dtype=np.int32)
-			y_center_estimated = np.array(kalman_state[1], dtype=np.int32)
-			
-			
-			label = states[8]
-		
-			color_red = (0,0,255)#(np.random.randint(255),np.random.randint(255),np.random.randint(255))
-			color_green = (0,255,0)
-			self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (x_center,y_center), 5, color_red, -1)
-			self.cv_rgb_image = cv2.circle(self.cv_rgb_image, (x_center_estimated,y_center_estimated), 10, color_green, -1)
-			cv2.putText(
-				self.cv_rgb_image,
-				label, 
-				(x_center,y_center-10),
-				 cv2.FONT_HERSHEY_SIMPLEX, 1, color_red, 2, cv2.LINE_AA)
-
-			cv2.putText(
-				self.cv_rgb_image,
-				label, 
-				(x_center_estimated,y_center_estimated),
-				 cv2.FONT_HERSHEY_SIMPLEX, 1, color_green, 2, cv2.LINE_AA)
-			
-		cv2.imshow('window',self.cv_rgb_image)
-
+		cv2.imshow('window', self.cv_rgb_image)
 		cv2.waitKey(3)
 
-		return self.cv_rgb_image
+
+
+
+	def get_image(self, data):
+
+		self.cv_rgb_image = self.bridge.imgmsg_to_cv2(data,'bgr8')
 
 	
 
+	def kalman(self, states):
 
+		print('kalstates',states)
 
+		
+		u = states[0][0]
+		v = states[0][1]
+		s = states[0][2]
+		r = states[0][3]
+		ID = states[0][4]
 
-
-if __name__ =='__main__':
 	
-	MTT = MultiTargetTracker()
+		
+		self.kf.predict()
+		self.kf.update([u,v,s,r])
+		
 
-	rate = 200
-
-	MTT.dt = 1/rate
-
-	rate = rospy.Rate(rate)
-
-	prev_objects = MTT.object_state # x,y,label
-
-	while not rospy.is_shutdown():
-
-		print("========================")
-	
-		current_objects = MTT.object_state		
-
-		kalman_prediction_list = []
-		for item_prev, item_current in zip(prev_objects,current_objects):
+		# Kalman filter prediction
+		print(u,v,s,r)
+		print([item for item in self.kf.x])
+		uu = self.kf.x[0]
+		vv = self.kf.x[1]
+		ss = self.kf.x[2]
+		rr = self.kf.x[3]
+		if ss < 0:
+			ss = 0
 			
-			kalman_prediction_list.append(MTT.kalman_filter(item_prev,item_current))
+		elif rr < 0:
+			rr = 0
 
-		MTT.kalman_state = kalman_prediction_list
-
-		MTT.Euclidean(prev_objects,MTT.kalman_state)
-		
-		# for item in current_objects:
-			
-		# 	print(item[-1])
-		
-		
-		prev_objects = current_objects
-		
-		
-
-	
+		#return uu,vv,ss,rr,ID
+		return uu,vv,ss,rr,ID
 
 
-		rate.sleep()
+	def draw(self, uu,vv,ss,rr,ID,blue,green,red):
 
-	
+		xmin, ymin, xmax, ymax = self.get_box_point(uu,vv,ss,rr)		
+		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red))
 
-	
-	
-
-
+		cv2.putText(
+				self.cv_rgb_image,
+				str(ID), 
+				(int(xmin),int(ymin)-10),
+				 cv2.FONT_HERSHEY_SIMPLEX, 1, (blue,green,red), 2, cv2.LINE_AA)
 
 		
+
+
+	def get_box_point(self,u,v,s,r):
+
+		w = np.sqrt(s*r)
+
+		h = np.sqrt(s/r)
+		
+		xmin = u - w/2.
+		xmax = u + w/2.
+		ymin = v - h/2.
+		ymax = v + h/2.
+
+		return xmin,ymin,xmax,ymax
+
+
+if __name__=='__main__':
+
+	Tracker()
+	rate = rospy.Rate(20)
+	rospy.spin()
 
 	
