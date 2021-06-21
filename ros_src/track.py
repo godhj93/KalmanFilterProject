@@ -25,7 +25,7 @@ class KalmanBoxTracker:
 
 		self.id = KalmanBoxTracker._counter
 
-		print("Created new tracker, ID : ",self.id)
+		#print("Created new tracker, ID : ",self.id)
 
 		self.kf = KalmanFilter(dim_x=7, dim_z=4)
 
@@ -113,7 +113,7 @@ class Tracker:
 
 			self.IDnum += 1
 
-			self.draw(u,v,s,r,'yolo', 0,255,0)
+			#self.draw(u,v,s,r,'yolo', 0,255,0)
 
 
 
@@ -136,16 +136,18 @@ class Tracker:
 		else:
 			print('====')
 			
+			# Keep going to prediction
+			for tracker in self.kalman_tracks:
+				
+				u,v,s,r = tracker.kf.x[:4]
+				
+				tracker.prediction(u,v,s,r)
+				#self.draw(u,v,s,r,'kalman', 0,255,255)
 
 			for state in self.object_state:
 
-				u,v,s,r,ID = state[0][:5]
-
 				tracker_new = KalmanBoxTracker()
-
-				tracker_new.prediction(u,v,s,r)
-
-				self.draw(u,v,s,r,'kalmannew', 0,0,255)
+				tracker_new.kf.x[:4]=state[0][:4]
 
 				self.kalman_tracks_new.append(tracker_new)
 
@@ -161,8 +163,15 @@ class Tracker:
 					
 					u_kalman_new ,v_kalman_new ,s_kalman_new, r_kalman_new = tracker_new.kf.x[:4]
 
-					u_kalman, v_kalman, s_kalman, r_kalman = tracker.kf.x[:4]
+					
 
+
+					u_kalman, v_kalman, s_kalman, r_kalman = tracker.kf.x[:4]
+					# self.draw(u_kalman_new ,v_kalman_new ,s_kalman_new, r_kalman_new,tracker_new.id,0,255,0)
+					# self.draw(u_kalman, v_kalman, s_kalman, r_kalman,tracker.id,255,0,0)
+
+
+					
 					iou_table[idx_kalman][idx_kalman_new] = self.iou(
 												[u_kalman_new,v_kalman_new,s_kalman_new,r_kalman_new],
 												[u_kalman,v_kalman,s_kalman,r_kalman]
@@ -171,29 +180,38 @@ class Tracker:
 			row_ind, col_ind = linear_sum_assignment(-iou_table)
 
 			optimal_assignment = iou_table[row_ind,col_ind]
-
+			print('ioutable',iou_table)
+			print('optimal',optimal_assignment)
+			print(row_ind,col_ind)
 			for idx in range(len(optimal_assignment)):
 				
 				row, col = np.where(iou_table == optimal_assignment[idx])
 
+				# print("!!")
 				# print(row,col)
 				# print('optmal',optimal_assignment)
+				#print(self.kalman_tracks_new[col[0]], "==>" ,self.kalman_tracks[row[0]])
+				
+				#print(self.kalman_tracks_new[col[0]])
+				u,v,s,r = self.kalman_tracks_new[col[0]].kf.x[:4]
+				self.draw(u,v,s,r,'optimal new' + str(self.kalman_tracks_new[col[0]].id),255,0,0)
+				
+				self.draw(u,v,s,r,'optimal old' + str(self.kalman_tracks[row[0]].id),0,255,0)
 
-				self.kalman_tracks_new[col[0]] = copy.deepcopy(self.kalman_tracks[row[0]])
+				self.kalman_tracks_new[col[0]] = self.kalman_tracks[row[0]]
+
+				u,v,s,r = self.kalman_tracks[row[0]].kf.x[:4]
 				print('assigned optimal matching')
+				print(self.kalman_tracks_new[col[0]] == self.kalman_tracks[row[0]])
+				
 
-			self.kalman_tracks = copy.deepcopy(self.kalman_tracks_new)
+			self.kalman_tracks = self.kalman_tracks_new
 
 			self.kalman_tracks_new = []
 
-			# Keep going to prediction
-			for tracker in self.kalman_tracks:
-				
-				u,v,s,r = tracker.kf.x[:4]
-				
-				self.draw(u,v,s,r,'kalman', 0,255,255)
 
-				tracker.prediction(u,v,s,r)
+
+			
 
 
 				# self.object_state[col[0]][0][-1] = kalman_id
@@ -236,6 +254,7 @@ class Tracker:
 
 	def iou(self,box_a,box_b):
 		
+		
 		xmin_a, ymin_a, xmax_a, ymax_a = self.get_box_point(box_a[0],box_a[1],box_a[2],box_a[3])
 		xmin_b, ymin_b, xmax_b, ymax_b = self.get_box_point(box_b[0],box_b[1],box_b[2],box_b[3])
 
@@ -256,9 +275,12 @@ class Tracker:
 		overlapping_region = iou_width * iou_height
 		combined_region = box_a_area + box_b_area - overlapping_region
 
-		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_xmin),int(iou_ymin)), (int(iou_xmax),int(iou_ymax)), (255,255,255),-1)
-
-		return float(overlapping_region)/float(combined_region)
+		#self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_xmin),int(iou_ymin)), (int(iou_xmax),int(iou_ymax)), (255,255,255),-1)
+		
+		try:
+			return float(overlapping_region)/float(combined_region)
+		except ZeroDivisionError:
+			return 0
 
 
 
