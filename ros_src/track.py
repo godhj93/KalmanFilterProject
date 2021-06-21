@@ -55,6 +55,14 @@ class KalmanBoxTracker:
 		self.kf.Q[-1,-1] *= 0.1
 		self.kf.Q[4:,4:] *= 0.1
 
+	def save_z(self,u,v,s,r):
+		self.u = u
+		self.v = v
+		self.s = s
+		self.r = r
+
+	def load_z(self):
+		return self.u,self.v,self.s,self.r
 
 	def prediction(self, u,v,s,r):
 		
@@ -147,7 +155,12 @@ class Tracker:
 			for state in self.object_state:
 
 				tracker_new = KalmanBoxTracker()
-				tracker_new.kf.x[:4]=state[0][:4]
+				u,v,s,r=state[0][:4]
+
+				tracker_new.save_z(u,v,s,r)
+				tracker_new.prediction(u,v,s,r) 
+
+				#tracker_new.save_z(u,v,s,r)
 
 				self.kalman_tracks_new.append(tracker_new)
 
@@ -176,35 +189,29 @@ class Tracker:
 												[u_kalman_new,v_kalman_new,s_kalman_new,r_kalman_new],
 												[u_kalman,v_kalman,s_kalman,r_kalman]
 												)
-		
+			print('iou_table',iou_table)
+
 			row_ind, col_ind = linear_sum_assignment(-iou_table)
 
 			optimal_assignment = iou_table[row_ind,col_ind]
-			print('ioutable',iou_table)
-			print('optimal',optimal_assignment)
-			print(row_ind,col_ind)
+			
 			for idx in range(len(optimal_assignment)):
 				
 				row, col = np.where(iou_table == optimal_assignment[idx])
 
-				# print("!!")
-				# print(row,col)
-				# print('optmal',optimal_assignment)
-				#print(self.kalman_tracks_new[col[0]], "==>" ,self.kalman_tracks[row[0]])
+			# 	# print("!!")
+			# 	# print(row,col)
+			# 	# print('optmal',optimal_assignment)
+			# 	#print(self.kalman_tracks_new[col[0]], "==>" ,self.kalman_tracks[row[0]])
 				
-				#print(self.kalman_tracks_new[col[0]])
-				u,v,s,r = self.kalman_tracks_new[col[0]].kf.x[:4]
-				self.draw(u,v,s,r,'optimal new' + str(self.kalman_tracks_new[col[0]].id),255,0,0)
+			# 	#print(self.kalman_tracks_new[col[0]])
+				u,v,s,r = self.kalman_tracks_new[col[0]].load_z()
 				
-				self.draw(u,v,s,r,'optimal old' + str(self.kalman_tracks[row[0]].id),0,255,0)
-
-				self.kalman_tracks_new[col[0]] = self.kalman_tracks[row[0]]
-
-				u,v,s,r = self.kalman_tracks[row[0]].kf.x[:4]
-				print('assigned optimal matching')
-				print(self.kalman_tracks_new[col[0]] == self.kalman_tracks[row[0]])
 				
 
+			 	self.kalman_tracks_new[col[0]] = self.kalman_tracks[row[0]] 
+			 	self.draw(u,v,s,r,'car' + str(self.kalman_tracks_new[col[0]].id),255,0,0)
+				
 			self.kalman_tracks = self.kalman_tracks_new
 
 			self.kalman_tracks_new = []
@@ -277,10 +284,9 @@ class Tracker:
 
 		#self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_xmin),int(iou_ymin)), (int(iou_xmax),int(iou_ymax)), (255,255,255),-1)
 		
-		try:
-			return float(overlapping_region)/float(combined_region)
-		except ZeroDivisionError:
-			return 0
+		
+		return float(overlapping_region)/float(combined_region)
+		
 
 
 
