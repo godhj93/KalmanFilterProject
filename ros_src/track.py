@@ -203,12 +203,12 @@ class Tracker:
 
 				uu,vv,ss,rr = self.kalman_tracks_new[col[0]].prediction(u,v,s,r)				
 
-				self.draw(uu,vv,ss,rr,'car_kalman' + str(self.kalman_tracks_new[col[0]].id),0,255,0)
+				self.draw(uu,vv,ss,rr,'',0,255,0)
 				
 				
 
 			 	self.kalman_tracks_new[col[0]] = self.kalman_tracks[row[0]] 
-			 	self.draw(u,v,s,r,'car' + str(self.kalman_tracks_new[col[0]].id),255,0,0)
+			 	self.draw(u,v,s,r,'car' + str(self.kalman_tracks[row[0]].id),255,255,255)
 				
 			self.kalman_tracks = self.kalman_tracks_new
 
