@@ -137,58 +137,65 @@ class Tracker:
 				
 				tracker = KalmanBoxTracker()
 				
-				tracker.prediction(u,v,s,r)
+				uu,vv,ss,rr = tracker.prediction(u,v,s,r)
+
+				tracker.save_z(uu,vv,ss,rr)
 				
 				self.kalman_tracks.append(tracker)
 
 
 		else:
 			print('====')
-			
+			print(len(self.kalman_tracks))
+
+		
 			# Keep going to prediction
 			for tracker in self.kalman_tracks:
 				
-				u,v,s,r = tracker.kf.x[:4]
-				
+				#u,v,s,r = tracker.kf.x[:4]
+				u,v,s,r = tracker.load_z()
 				tracker.prediction(u,v,s,r)
+				#self.draw(u,v,s,r,'kalman',255,255,255)
 				#self.draw(u,v,s,r,'kalman', 0,255,255)
 
+			measurement_list = []
 			for state in self.object_state:
 
-				tracker_new = KalmanBoxTracker()
-				u,v,s,r=state[0][:4]
+				measurement_list.append(state[0][:4])
 
-				tracker_new.save_z(u,v,s,r)
-				tracker_new.prediction(u,v,s,r) 
 
-				#tracker_new.save_z(u,v,s,r)
+				# tracker_new = KalmanBoxTracker()
+				# u,v,s,r=state[0][:4]
 
-				self.kalman_tracks_new.append(tracker_new)
+				# tracker_new.save_z(u,v,s,r)
+				# #tracker_new.prediction(u,v,s,r) 
+
+				# #tracker_new.save_z(u,v,s,r)
+
+				# self.kalman_tracks_new.append(tracker_new)
 
 			
 
-			#IOU matching
-			iou_table = np.zeros(shape=(len(self.kalman_tracks), len(self.kalman_tracks_new)))
+			# #IOU matching
+			iou_table = np.zeros(shape=(len(self.kalman_tracks), len(measurement_list)))
 			#print(iou_table.shape)
 
-			for idx_kalman_new,tracker_new in enumerate(self.kalman_tracks_new):
+			for idx_measurement,measurement in enumerate(measurement_list):
 
 				for idx_kalman,tracker in enumerate(self.kalman_tracks):
 					
-					u_kalman_new ,v_kalman_new ,s_kalman_new, r_kalman_new = tracker_new.kf.x[:4]
+					u_tracker ,v_tracker ,s_tracker, r_tracker = tracker.load_z()
 
-					
+					u_measurement, v_measurement, s_measurement, r_measurement = measurement
 
-
-					u_kalman, v_kalman, s_kalman, r_kalman = tracker.kf.x[:4]
-					# self.draw(u_kalman_new ,v_kalman_new ,s_kalman_new, r_kalman_new,tracker_new.id,0,255,0)
-					# self.draw(u_kalman, v_kalman, s_kalman, r_kalman,tracker.id,255,0,0)
+					self.draw(u_tracker ,v_tracker ,s_tracker, r_tracker,tracker.id,0,255,0)
+					self.draw(u_measurement, v_measurement, s_measurement, r_measurement,'measure',255,0,0)
 
 
 					
-					iou_table[idx_kalman][idx_kalman_new] = self.iou(
-												[u_kalman_new,v_kalman_new,s_kalman_new,r_kalman_new],
-												[u_kalman,v_kalman,s_kalman,r_kalman]
+					iou_table[idx_kalman][idx_measurement] = self.iou(
+												[u_tracker ,v_tracker ,s_tracker, r_tracker],
+												[u_measurement, v_measurement, s_measurement, r_measurement]
 												)
 			#print('iou_table',iou_table)
 
@@ -203,73 +210,72 @@ class Tracker:
 			for idx in range(len(optimal_assignment)):
 				
 				row, col = np.where(iou_table == optimal_assignment[idx])
-				assigned_row.append(row[0])
-				assigned_col.append(col[0])
-				u,v,s,r = self.kalman_tracks_new[col[0]].load_z()
 
-				uu,vv,ss,rr = self.kalman_tracks_new[col[0]].prediction(u,v,s,r)				
+				u_measurement = measurement_list[col[0]][0]
+				v_measurement = measurement_list[col[0]][1]
+				s_measurement = measurement_list[col[0]][2]
+				r_measurement = measurement_list[col[0]][3]
 
-				self.draw(uu,vv,ss,rr,'',0,255,0)
-				
-				self.kalman_tracks_new[col[0]] = self.kalman_tracks[row[0]] 
-			 	self.draw(u,v,s,r,'car' + str(self.kalman_tracks[row[0]].id),0,0,255)
+				self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+
+			 	
 		
-			iou_row_list = np.arange(iou_table.shape[0])
+			# iou_row_list = np.arange(iou_table.shape[0])
 
 			
-			for row in iou_row_list:
-				if row not in assigned_row:
-					print('@@@@@@@@@@@@@@@@2')
-					self.kalman_tracks[row].hit -= 1
-					if self.kalman_tracks[row].hit >= 3:
-						self.kalman_tracks_new.append(self.kalman_tracks[row])
-					print(self.kalman_tracks[row].id,self.kalman_tracks[row].hit)
-				elif row in assigned_row:
-					self.kalman_tracks[row].hit += 1
+			# # for row in iou_row_list:
+			# # 	if row not in assigned_row:
+			# # 		print('@@@@@@@@@@@@@@@@2')
+			# # 		self.kalman_tracks[row].hit -= 1
+			# # 		if self.kalman_tracks[row].hit >= 3:
+			# # 			self.kalman_tracks_new.append(self.kalman_tracks[row])
+			# # 		print(self.kalman_tracks[row].id,self.kalman_tracks[row].hit)
+			# # 	elif row in assigned_row:
+			# # 		self.kalman_tracks[row].hit += 1
 
-				# if self.kalman_tracks[row].hit >= 3:
-				# 	self.kalman_tracks_new.append(self.kalman_tracks[row])
-				# elif self.kalman_tracks[row].hit <= 0 :
-				# 	print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			# 	# if self.kalman_tracks[row].hit >= 3:
+			# 	# 	self.kalman_tracks_new.append(self.kalman_tracks[row])
+			# 	# elif self.kalman_tracks[row].hit <= 0 :
+			# 	# 	print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 					
 
-				# for idx in range(len(optimal_assignment)):
+			# 	# for idx in range(len(optimal_assignment)):
 
 
 
-				# 	# row,col = np.where(iou_table == optimal_assignment[idx])
-				# 	# assigned_row.append(row[0])
-				# 	# assigned_col.append(col[0])
-				# 	# u,v,s,r = self.kalman_tracks[row[0]].load_z()
+			# 	# 	# row,col = np.where(iou_table == optimal_assignment[idx])
+			# 	# 	# assigned_row.append(row[0])
+			# 	# 	# assigned_col.append(col[0])
+			# 	# 	# u,v,s,r = self.kalman_tracks[row[0]].load_z()
 
-				# 	# uu,vv,ss,rr = self.kalman_tracks[row[0]].prediction(u,v,s,r)
+			# 	# 	# uu,vv,ss,rr = self.kalman_tracks[row[0]].prediction(u,v,s,r)
 
-				# 	self.kalman_tracks_new.append(self.kalman_tracks[row[0]])
-				# 	self.draw(uu,vv,ss,rr,'',0,255,255)
-
-
+			# 	# 	self.kalman_tracks_new.append(self.kalman_tracks[row[0]])
+			# 	# 	self.draw(uu,vv,ss,rr,'',0,255,255)
 
 
 
-			# iou_table_row_list = np.arange(iou_table.shape[0])
-			# iou_table_col_list = np.arange(iou_table.shape[1])
 
-			#print(iou_table_row_list)
-			# if len(assigned_row) > 0 :
-			# 	for item_row in iou_table_row_list:
-			# 		print(item_row,assigned_row)
-			# 		if item_row not in assigned_row:
-			# 			print('gd')
-			# if len(assigned_col) > 0 : 
-			# 	for item_col in iou_table_col_list:
-			# 		if item_col not in assigned_col:
+
+			# # iou_table_row_list = np.arange(iou_table.shape[0])
+			# # iou_table_col_list = np.arange(iou_table.shape[1])
+
+			# #print(iou_table_row_list)
+			# # if len(assigned_row) > 0 :
+			# # 	for item_row in iou_table_row_list:
+			# # 		print(item_row,assigned_row)
+			# # 		if item_row not in assigned_row:
+			# # 			print('gd')
+			# # if len(assigned_col) > 0 : 
+			# # 	for item_col in iou_table_col_list:
+			# # 		if item_col not in assigned_col:
 						
-			# 			u,v,s,r = self.kalman_tracks_new[item_col].load_z()
-			# 			self.kalman_tracks_new[item_col].prediction(u,v,s,r)
+			# # 			u,v,s,r = self.kalman_tracks_new[item_col].load_z()
+			# # 			self.kalman_tracks_new[item_col].prediction(u,v,s,r)
 
-			self.kalman_tracks = self.kalman_tracks_new
+			# self.kalman_tracks = self.kalman_tracks_new
 
-			self.kalman_tracks_new = []
+			# self.kalman_tracks_new = []
 
 
 
