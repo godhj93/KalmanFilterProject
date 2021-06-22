@@ -157,6 +157,7 @@ class Tracker:
 				
 				#u,v,s,r = tracker.kf.x[:4]
 				u,v,s,r = tracker.load_z()
+				self.draw(u,v,s,r,'car'+str(tracker.id),0,255,0)
 				tracker.prediction(u,v,s,r)
 				#self.draw(u,v,s,r,'kalman',255,255,255)
 				#self.draw(u,v,s,r,'kalman', 0,255,255)
@@ -191,8 +192,8 @@ class Tracker:
 
 					u_measurement, v_measurement, s_measurement, r_measurement = measurement
 
-					self.draw(u_tracker ,v_tracker ,s_tracker, r_tracker,tracker.id,0,255,0)
-					self.draw(u_measurement, v_measurement, s_measurement, r_measurement,'measure',255,0,0)
+					
+					#self.draw(u_measurement, v_measurement, s_measurement, r_measurement,'measure',255,0,0)
 
 
 					
@@ -241,7 +242,7 @@ class Tracker:
 				# elif row in assigned_row:
 				# 	self.kalman_tracks[row].hit += 1
 
-				if self.kalman_tracks[row].hit >= 50 :
+				if self.kalman_tracks[row].hit >= 2 :
 					print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 					self.kalman_tracks.remove(self.kalman_tracks[row])
 				elif self.kalman_tracks[row].hit <= 0 :
