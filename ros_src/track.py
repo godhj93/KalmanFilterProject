@@ -56,6 +56,9 @@ class KalmanBoxTracker:
 		self.kf.Q[-1,-1] *= 0.1
 		self.kf.Q[4:,4:] *= 0.1
 
+	
+		
+
 	def save_z(self,u,v,s,r):
 		self.u = u
 		self.v = v
@@ -148,7 +151,7 @@ class Tracker:
 			print('====')
 			print(len(self.kalman_tracks))
 
-		
+
 			# Keep going to prediction
 			for tracker in self.kalman_tracks:
 				
@@ -210,7 +213,8 @@ class Tracker:
 			for idx in range(len(optimal_assignment)):
 				
 				row, col = np.where(iou_table == optimal_assignment[idx])
-
+				assigned_row.append(row[0])
+				assigned_row.append(col[0])
 				u_measurement = measurement_list[col[0]][0]
 				v_measurement = measurement_list[col[0]][1]
 				s_measurement = measurement_list[col[0]][2]
@@ -220,23 +224,43 @@ class Tracker:
 
 			 	
 		
-			# iou_row_list = np.arange(iou_table.shape[0])
+			iou_row_list = np.arange(iou_table.shape[0])
+			iou_col_list = np.arange(iou_table.shape[1])
 
 			
-			# # for row in iou_row_list:
-			# # 	if row not in assigned_row:
-			# # 		print('@@@@@@@@@@@@@@@@2')
-			# # 		self.kalman_tracks[row].hit -= 1
-			# # 		if self.kalman_tracks[row].hit >= 3:
-			# # 			self.kalman_tracks_new.append(self.kalman_tracks[row])
-			# # 		print(self.kalman_tracks[row].id,self.kalman_tracks[row].hit)
-			# # 	elif row in assigned_row:
-			# # 		self.kalman_tracks[row].hit += 1
+			for row in iou_row_list:
+				if row not in assigned_row:
+					print('@@@@@@@@@@@@@@@@',row)
+					self.kalman_tracks[row].hit += 1
+					print('hit',self.kalman_tracks[row].hit)
+					# if self.kalman_tracks[row].hit >= 3:
+					# 	self.kalman_tracks_new.append(self.kalman_tracks[row])
+					# print(self.kalman_tracks[row].id,self.kalman_tracks[row].hit)
+				else:
+					pass#self.kalman_tracks[row].hit += 1
+				# elif row in assigned_row:
+				# 	self.kalman_tracks[row].hit += 1
 
-			# 	# if self.kalman_tracks[row].hit >= 3:
-			# 	# 	self.kalman_tracks_new.append(self.kalman_tracks[row])
-			# 	# elif self.kalman_tracks[row].hit <= 0 :
-			# 	# 	print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+				if self.kalman_tracks[row].hit >= 50 :
+					print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+					self.kalman_tracks.remove(self.kalman_tracks[row])
+				elif self.kalman_tracks[row].hit <= 0 :
+					pass
+
+			for col in iou_col_list:
+
+				u_measurement = measurement_list[col][0]
+				v_measurement = measurement_list[col][1]
+				s_measurement = measurement_list[col][2]
+				r_measurement = measurement_list[col][3]
+
+				if col not in assigned_row:
+					print('new detection',col)
+					tracker = KalmanBoxTracker()
+					tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+
+					self.kalman_tracks.append(tracker)
+
 					
 
 			# 	# for idx in range(len(optimal_assignment)):
