@@ -143,46 +143,7 @@ class Tracker:
 				np.array([u,v,s,r,self.IDnum])	
 			])
 
-		# print(self.object_state)
-		# for idx, item in enumerate(self.object_state):
-
-		# 	for i in range(len(self.object_state)):
-		# 		if i != idx:
-
-		# 			print('asd',i,idx)
-		# 			print(item[:2],self.object_state[i][:2])
-		# 			if (np.abs(np.array(item[:2]) - np.array(self.object_state[i][:2])) < 30).all():
-						
-		# 				rospy.logerr('asd')
-		# 				print(item[:2], self.object_state[i][:2])
-
-		# 				self.object_state.remove(self.object_state[i])
-
-
-		# for idx,item in enumerate(self.object_state):
-
-
-		# 	itemx = item[0][0]
-		# 	itemy = item[0][1]
-		# 	print(idx,itemx,itemy)
-		# 	for i in range(len(self.object_state)):
-		# 		print(item[0][:2])
-		# 		print(self.object_state[i][0].tolist()[:2])
-		# 		if self.object_state[i][0].tolist() != item[0] : 
-		# 			x = self.object_state[i][0]
-		# 			y = self.object_state[i][1]
-
-		# 			if abs(x-itemx) < 2 and abs(y-itemy):
-
-		# 				self.object_state.remove(self.object_state[i])
-
-
-
-
-			# for 
-
-			#self.draw(u,v,s,r,'yolo', 0,255,0)
-
+	
 
 
 		if self.firstRun == 0 :
@@ -215,11 +176,11 @@ class Tracker:
 
 			measurement_list = self.get_measurement(self.object_state)
 			
-
+			print("OLD TRACKS")
 			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)			
 			self.optimal_assign(self.kalman_tracks,iou_table,measurement_list)
 
-
+			print("NEW TRACKS")
 			
 			if self.kalman_tracks_new:
 				iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
@@ -315,8 +276,8 @@ class Tracker:
 		for idx in range(len(optimal_assignment)):
 			
 			row, col = np.where(iou_table == optimal_assignment[idx])
-			assigned_row.append(row[0])
-			assigned_col.append(col[0])
+			# assigned_row.append(row[0])
+			# assigned_col.append(col[0])
 			u_measurement = measurement_list[col[0]][0]
 			v_measurement = measurement_list[col[0]][1]
 			s_measurement = measurement_list[col[0]][2]
@@ -326,11 +287,13 @@ class Tracker:
 			if iou_table[row[0]][col[0]] == 0:
 				pass
 			else:
+				assigned_row.append(row[0])
+				assigned_col.append(col[0])
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 				kalman_tracks[row[0]].hit += 1
 				if kalman_tracks[row[0]].hit >= 15:
 					kalman_tracks[row[0]].hit = 15
-					rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
+					# rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
 				# if kalman_tracks[row[0]].hit >= 15 and kalman_tracks[row[0]] not in self.kalman_tracks:
 				#  	kalman_tracks[row[0]].hit = 15
 				# 	self.kalman_tracks.append(kalman_tracks[row[0]])
@@ -358,7 +321,7 @@ class Tracker:
 				u,v,s,r = kalman_tracks[row].load_z()
 				uu,vv,ss,rr = kalman_tracks[row].prediction(u,v,s,r)
 				kalman_tracks[row].save_z(uu,vv,ss,rr)
-				rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
+				#rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
 				# print('hit',kalman_tracks[row].hit)
 				
 	
@@ -380,14 +343,30 @@ class Tracker:
 				#print('new detection',col)
 				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+				self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
 				tracker.hit = 0
+				rospy.logwarn("car [%d] has been added  %d col in iou table",tracker.id, col )
 				self.kalman_tracks_new.append(tracker)
-		
-		for item in kalman_tracks:
 
+		print("IOU \n {}".format(iou_table))
+		for item in kalman_tracks:
+			print("assigned row {}".format(assigned_row))
+			print("assigned col {}".format(assigned_col))
+			if item in self.kalman_tracks:
+				rospy.loginfo("car [%d]'s hit : %d",item.id,item.hit)
+			elif item in self.kalman_tracks_new:
+				rospy.logerr("car [%d]'s hit : %d",item.id,item.hit)
 			if item.hit < 0:
 				kalman_tracks.remove(item)
 				rospy.logwarn("car [%d] has been removed",item.id)
+
+		for item in self.kalman_tracks_new:
+
+			if item.hit >=15 :
+				self.kalman_tracks_new.remove(item)
+				rospy.logwarn("car [%d] has been added",item.id)
+				self.kalman_tracks.append(item)
+
 		
 
 
