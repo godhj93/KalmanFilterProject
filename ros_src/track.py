@@ -178,7 +178,6 @@ class Tracker:
 			self.old_track = True
 			self.kalman_run(self.kalman_tracks)
 			self.old_track = False
-
 			self.kalman_run(self.kalman_tracks_new)
 
 			measurement_list = self.get_measurement(self.object_state)
@@ -401,7 +400,8 @@ class Tracker:
 					for idx,item in enumerate(self.kalman_tracks_new):
 						print('askdapd',self.kalman_tracks_new[idx].id)
 						if self.kalman_tracks_new[col].id == item.id:
-							self.kalman_tracks_new[col].id = self.kalman_tracks[row].id
+							#self.kalman_tracks_new[col].id = self.kalman_tracks[row].id
+							self.kalman_tracks_new[col].hit = -5
 
 					#self.kalman_tracks_new[col]  = copy.deepcopy(self.kalman_tracks_row[row] )
 					
