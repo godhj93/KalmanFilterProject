@@ -321,10 +321,7 @@ class Tracker:
 				kalman_tracks[row].save_z(uu,vv,ss,rr)
 				rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
 				# print('hit',kalman_tracks[row].hit)
-				if kalman_tracks[row].hit < 0:
-			
-					kalman_tracks.remove(kalman_tracks[row])
-					rospy.loginfo("tracker %d has been removed",row)
+				
 	
 		# 	else:
 		# 		pass
@@ -345,10 +342,14 @@ class Tracker:
 				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
 				tracker.hit = 5
-				#self.kalman_tracks_new.append(tracker)
-				
+				self.kalman_tracks_new.append(tracker)
+		
+		for item in kalman_tracks:
 
-
+			if item.hit < 0:
+				kalman_tracks.remove(item)
+				rospy.logwarn("car [%d] has been removed",item.id)
+		
 
 
 	def get_measurement(self,object_state_list):
