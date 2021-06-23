@@ -61,7 +61,7 @@ class KalmanBoxTracker:
 
 
 		self.kf.R[2:,2:] *= 1
-		self.kf.P[4:,4:] *= 1000
+		self.kf.P[4:,4:] *= 100
 		self.kf.P *= 100.
 		self.kf.Q[-1,-1] *= 0.1
 		self.kf.Q[4:,4:] *= 0.1
@@ -201,6 +201,7 @@ class Tracker:
 			for idx_kalman,tracker in enumerate(self.kalman_tracks):
 				
 				u_tracker ,v_tracker ,s_tracker, r_tracker = tracker.load_z()
+				self.draw(u_tracker ,v_tracker ,s_tracker, r_tracker, tracker.id, tracker.color)
 				u_tracker ,v_tracker ,s_tracker, r_tracker = self.get_box_point(u_tracker ,v_tracker ,s_tracker, r_tracker)
 
 				tracker_box = box(u_tracker ,v_tracker ,s_tracker, r_tracker)
@@ -208,6 +209,7 @@ class Tracker:
 
 
 				u_measurement, v_measurement, s_measurement, r_measurement = measurement
+				# self.draw(u_measurement, v_measurement, s_measurement, r_measurement,'yolo',(0,255,0))
 				u_measurement, v_measurement, s_measurement, r_measurement = self.get_box_point(u_measurement, v_measurement, s_measurement, r_measurement)
 
 				measuerment_box = box(u_measurement, v_measurement, s_measurement, r_measurement)
@@ -226,46 +228,46 @@ class Tracker:
 		#print("kalman table \n {}".format())
 		#print("measurement_list \n {}",measurement_list)
 
-		row_ind, col_ind = linear_sum_assignment(-iou_table)
+		# row_ind, col_ind = linear_sum_assignment(-iou_table)
 
-		optimal_assignment = iou_table[row_ind,col_ind]
+		# optimal_assignment = iou_table[row_ind,col_ind]
 			
-		assigned_col = []
-		assigned_row = []
+		# assigned_col = []
+		# assigned_row = []
 	
-		for idx in range(len(optimal_assignment)):
+		# for idx in range(len(optimal_assignment)):
 			
-			row, col = np.where(iou_table == optimal_assignment[idx])
-			assigned_row.append(row[0])
-			assigned_col.append(col[0])
-			u_measurement = measurement_list[col[0]][0]
-			v_measurement = measurement_list[col[0]][1]
-			s_measurement = measurement_list[col[0]][2]
-			r_measurement = measurement_list[col[0]][3]
+		# 	row, col = np.where(iou_table == optimal_assignment[idx])
+		# 	assigned_row.append(row[0])
+		# 	assigned_col.append(col[0])
+		# 	u_measurement = measurement_list[col[0]][0]
+		# 	v_measurement = measurement_list[col[0]][1]
+		# 	s_measurement = measurement_list[col[0]][2]
+		# 	r_measurement = measurement_list[col[0]][3]
 
-			# Matching 
-			self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+		# 	# Matching 
+		# 	self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 
 	 	
-		# Find unassigned objects	
-		iou_row_list = np.arange(iou_table.shape[0])
-		iou_col_list = np.arange(iou_table.shape[1])
+		# # Find unassigned objects	
+		# iou_row_list = np.arange(iou_table.shape[0])
+		# iou_col_list = np.arange(iou_table.shape[1])
 
 		
-		for row in iou_row_list:
-			if row not in assigned_row:
+		# for row in iou_row_list:
+		# 	if row not in assigned_row:
 				
-				self.kalman_tracks[row].hit -= 1
-				rospy.loginfo("tracker [%d]'s hit : %d",row,self.kalman_tracks[row].hit)
-				# print('hit',self.kalman_tracks[row].hit)
+		# 		self.kalman_tracks[row].hit -= 1
+		# 		rospy.loginfo("tracker [%d]'s hit : %d",row,self.kalman_tracks[row].hit)
+		# 		# print('hit',self.kalman_tracks[row].hit)
 	
-			else:
-				pass
+		# 	else:
+		# 		pass
 	
-			if not self.kalman_tracks[row] and self.kalman_tracks[row].hit < 0 :
+		# 	if not self.kalman_tracks[row] and self.kalman_tracks[row].hit < 0 :
 			
-				self.kalman_tracks.remove(self.kalman_tracks[row])
-				rospy.loginfo("tracker [%d] has been removed",row)
+		# 		self.kalman_tracks.remove(self.kalman_tracks[row])
+		# 		rospy.loginfo("tracker [%d] has been removed",row)
 			# elif self.kalman_tracks[row].hit <= 0 :
 			# 	pass
 
@@ -305,9 +307,18 @@ class Tracker:
 	    
 	def check_if_overlapped(self,box_a,box_b,iou_box):
 
-		print((box_a.xmin < iou_box.xmin < box_a.xmax),(box_a.ymin < iou_box.ymin < box_a.ymax),(box_b.xmin < iou_box.xmin < box_b.xmax), (box_b.ymin < iou_box.ymin < box_b.ymax))
+		print((box_a.xmin <= iou_box.xmin <= box_a.xmax),(box_a.ymin <= iou_box.ymin <= box_a.ymax),(box_b.xmin <= iou_box.xmin <= box_b.xmax), (box_b.ymin <= iou_box.ymin <= box_b.ymax))
 		
-		if ((box_a.xmin < iou_box.xmin < box_a.xmax) and (box_a.ymin < iou_box.ymin < box_a.ymax)) or ((box_b.xmin < iou_box.xmin < box_b.xmax) and (box_b.ymin < iou_box.ymin < box_b.ymax)):
+		if (((box_a.xmin < iou_box.xmin < box_a.xmax) and\
+			(box_a.ymin < iou_box.ymin < box_a.ymax)) or\
+			((box_b.xmin < iou_box.xmin < box_b.xmax) and\
+			(box_b.ymin < iou_box.ymin < box_b.ymax))) or\
+		(((box_a.xmin < iou_box.xmax < box_a.xmax) and\
+			(box_a.ymin < iou_box.ymin < box_a.ymax)) or\
+			((box_b.xmin < iou_box.xmax < box_b.xmax) and\
+			(box_b.ymin < iou_box.ymin < box_b.ymax))) :
+
+		
 		    return True
 		else:
 		    return False
@@ -330,15 +341,15 @@ class Tracker:
 	    
 	    iou_box = box(iou_xmin,iou_ymin,iou_xmax,iou_ymax)
 
-	    # self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_box.xmin),int(iou_box.ymin))\
-	    # 	, (int(iou_box.xmax), int(iou_box.ymax)), (255,255,255),-1)
+	    self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_box.xmin),int(iou_box.ymin))\
+	    	, (int(iou_box.xmax), int(iou_box.ymax)), (255,255,255),-1)
 
-	    self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_a.xmin),int(box_a.ymin))\
-	    	, (int(box_a.xmax), int(box_b.ymax)), (255,0,0),3)
+	    # self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_a.xmin),int(box_a.ymin))\
+	    # 	, (int(box_a.xmax), int(box_b.ymax)), (255,255,0),1)
 
 
 	    self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_b.xmin),int(box_b.ymin))\
-	    	, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),3)
+	    	, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),1)
 
 
 	    print('IOUBOXCAL',box_a_area,box_b_area)
@@ -408,7 +419,7 @@ class Tracker:
 	def draw(self, uu,vv,ss,rr,ID,color):
 		blue,green,red = color[0],color[1],color[2]
 		xmin, ymin, xmax, ymax = self.get_box_point(uu,vv,ss,rr)		
-		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red))
+		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red), 1)
 
 		cv2.putText(
 				self.cv_rgb_image,
