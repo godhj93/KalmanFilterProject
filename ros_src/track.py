@@ -135,12 +135,43 @@ class Tracker:
 			s = data.results[idx].w * data.results[idx].h
 			r = float(data.results[idx].w) / float(data.results[idx].h)
 			
+
+
+			
 			self.object_state.append(
 			[
 				np.array([u,v,s,r,self.IDnum])	
 			])
 
-			self.IDnum += 1
+		print(self.object_state)
+		for idx, item in enumerate(self.object_state):
+
+			for i in range(len(self.object_state)):
+				if i != idx:
+
+					print('asd',i,idx,item)
+
+		# for idx,item in enumerate(self.object_state):
+
+
+		# 	itemx = item[0][0]
+		# 	itemy = item[0][1]
+		# 	print(idx,itemx,itemy)
+		# 	for i in range(len(self.object_state)):
+		# 		print(item[0][:2])
+		# 		print(self.object_state[i][0].tolist()[:2])
+		# 		if self.object_state[i][0].tolist() != item[0] : 
+		# 			x = self.object_state[i][0]
+		# 			y = self.object_state[i][1]
+
+		# 			if abs(x-itemx) < 2 and abs(y-itemy):
+
+		# 				self.object_state.remove(self.object_state[i])
+
+
+
+
+			# for 
 
 			#self.draw(u,v,s,r,'yolo', 0,255,0)
 
@@ -341,7 +372,7 @@ class Tracker:
 				#print('new detection',col)
 				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
-				tracker.hit = 5
+				tracker.hit = 0
 				self.kalman_tracks_new.append(tracker)
 		
 		for item in kalman_tracks:
