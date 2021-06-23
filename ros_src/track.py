@@ -282,9 +282,9 @@ class Tracker:
 			else:
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 				kalman_tracks[row[0]].hit += 1
-				if kalman_tracks[row[0]].hit >= 15:
-					kalman_tracks[row[0]].hit = 15
-					rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
+				# if kalman_tracks[row[0]].hit >= 15:
+				# 	kalman_tracks[row[0]].hit = 15
+				# 	rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
 				# if kalman_tracks[row[0]].hit >= 15 and kalman_tracks[row[0]] not in self.kalman_tracks:
 				#  	kalman_tracks[row[0]].hit = 15
 				# 	self.kalman_tracks.append(kalman_tracks[row[0]])
@@ -318,7 +318,7 @@ class Tracker:
 			if kalman_tracks[row].hit < 0:
 			
 				kalman_tracks.remove(kalman_tracks[row])
-				rospy.loginfo("tracker %d has been removed",row)
+				rospy.loginfo("car %d has been removed",kalman_tracks[row].id)
 		# 	elif self.kalman_tracks[row].hit <= 0 :
 		# 		pass
 
@@ -329,12 +329,19 @@ class Tracker:
 			s_measurement = measurement_list[col][2]
 			r_measurement = measurement_list[col][3]
 
-			if col not in assigned_row:
+			if col not in assigned_col:
 				#print('new detection',col)
 				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
 				tracker.hit = 5
-				#self.kalman_tracks_new.append(tracker)
+				self.kalman_tracks_new.append(tracker)
+
+		for item in self.kalman_tracks_new:
+
+			if item.hit >= 5 and item not in self.kalman_tracks:
+
+				self.kalman_tracks.append(item)
+
 				
 
 
