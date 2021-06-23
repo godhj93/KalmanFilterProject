@@ -28,7 +28,7 @@ class KalmanBoxTracker:
 	
 	def __init__(self):
 		# Kalman Filter 
-		self.age = 15
+		self.age = 30
 		KalmanBoxTracker._counter +=1
 
 		self.id = KalmanBoxTracker._counter
@@ -232,8 +232,8 @@ class Tracker:
 			#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
 			uu,vv,ss,rr = tracker.prediction(u,v,s,r)
 			#self.draw(uu,vv,ss,rr,'ssssss'+str(tracker.id),tracker.color)
-			if self.old_track == True:
-				self.draw(uu,vv,ss,rr,'    kalman' + str(tracker.id),tracker.color)
+			# if self.old_track == True:
+			# 	self.draw(uu,vv,ss,rr,'    kalman' + str(tracker.id),tracker.color)
 			tracker.save_z(uu,vv,ss,rr)
 			# print("$$$$$$$$$$$$$$$$$")
 			# print(a,b,c,d)
@@ -373,7 +373,7 @@ class Tracker:
 
 		for item in self.kalman_tracks_new:
 
-			if item.hit >= item.age/3 : # ADDAGE
+			if item.hit >= 1:#item.age/3 : # ADDAGE
 				self.kalman_tracks.append(item)
 				self.kalman_tracks_new.remove(item)
 				rospy.logwarn("car [%d] has been added",item.id)
@@ -389,17 +389,17 @@ class Tracker:
 
 		
 		iou_table_for_nms = np.array(iou_table_for_nms)
-		print("IOUUUUU",iou_table_for_nms,iou_table_for_nms.shape)
+		#print("IOUUUUU",iou_table_for_nms,iou_table_for_nms.shape)
 		for row in range(iou_table_for_nms.shape[0]):
 			for col in range(iou_table_for_nms.shape[1]):
 				
-				print('?',row,col,iou_table_for_nms[row][col])
+				#print('?',row,col,iou_table_for_nms[row][col])
 				if iou_table_for_nms[row,col] != 0:
-					print("ban",row,col)
+					#print("ban",row,col)
 					rospy.logwarn("tracker %d has been banned ",self.kalman_tracks_new[col].id)
-					print(len(self.kalman_tracks_new))
+					#print(len(self.kalman_tracks_new))
 					for idx,item in enumerate(self.kalman_tracks_new):
-						print('askdapd',self.kalman_tracks_new[idx].id)
+						#print('askdapd',self.kalman_tracks_new[idx].id)
 						if self.kalman_tracks_new[col].id == item.id:
 							#self.kalman_tracks_new[col].id = self.kalman_tracks[row].id
 							self.kalman_tracks_new[col].hit = -5
