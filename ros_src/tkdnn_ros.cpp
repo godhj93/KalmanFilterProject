@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
     ros::Publisher yolo_output = nh.advertise<ros_tkdnn::yolo_coordinateArray>("yolo_output",10);
     ROS_INFO("add publisher : yolo_output");
-    uint rate = 30;
+    uint rate = 5;
     ros::Rate loop_rate(rate);    
     
 

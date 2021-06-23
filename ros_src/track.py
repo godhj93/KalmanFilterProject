@@ -34,7 +34,7 @@ class KalmanBoxTracker:
 
 		self.color = (np.random.randint(255),np.random.randint(255),np.random.randint(255))
 
-		self.hit = 15 
+		self.hit = 5
 		#print("Created new tracker, ID : ",self.id)
 
 		self.kf = KalmanFilter(dim_x=7, dim_z=4)
@@ -227,7 +227,7 @@ class Tracker:
 		
 		# Hungraian algorithm
 
-		#print("iou table \n {}".format(iou_table))
+		print("iou table \n {}".format(iou_table))
 		#print("kalman table \n {}".format())
 		#print("measurement_list \n {}",measurement_list)
 
@@ -249,7 +249,10 @@ class Tracker:
 			r_measurement = measurement_list[col[0]][3]
 
 			# Matching 
-			self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+			if iou_table[row[0]][col[0]] == 0:
+				pass
+			else:
+				self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 
 
 		#draw 
