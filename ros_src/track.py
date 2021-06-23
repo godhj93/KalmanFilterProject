@@ -175,22 +175,30 @@ class Tracker:
 			print("number of temporal tracker is {}".format(len(self.kalman_tracks_new)))
 
 			# Keep going to prediction
+			self.old_track = True
 			self.kalman_run(self.kalman_tracks)
+			self.old_track = False
 
 			self.kalman_run(self.kalman_tracks_new)
 
 			measurement_list = self.get_measurement(self.object_state)
 			
 			print("OLD TRACKS")
+			
 			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)			
 			self.optimal_assign(self.kalman_tracks,iou_table,measurement_list)
 
 			print("NEW TRACKS")
 			
 			if self.kalman_tracks_new:
+				
 				iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
 				self.optimal_assign(self.kalman_tracks_new,iou_table_new,measurement_list)
 				#print("ioutablenew\n",iou_table_new)
+
+		
+
+
 
 	#draw 
 
@@ -225,10 +233,8 @@ class Tracker:
 			#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
 			uu,vv,ss,rr = tracker.prediction(u,v,s,r)
 			#self.draw(uu,vv,ss,rr,'ssssss'+str(tracker.id),tracker.color)
-
-			a,b,c,d = self.get_box_point(u,v,s,r)
-			aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
-			self.draw(uu,vv,ss,rr,'kalman' + str(tracker.id),tracker.color)
+			if self.old_track == True:
+				self.draw(uu,vv,ss,rr,'    kalman' + str(tracker.id),tracker.color)
 			tracker.save_z(uu,vv,ss,rr)
 			# print("$$$$$$$$$$$$$$$$$")
 			# print(a,b,c,d)
@@ -352,7 +358,7 @@ class Tracker:
 				#self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
 				tracker.hit = 0
 				rospy.logwarn("car [%d] has been added  %d col in iou table",tracker.id, col )
-				#self.kalman_tracks_new.append(tracker)
+				self.kalman_tracks_new.append(tracker)
 
 		print("IOU \n {}".format(iou_table))
 		for item in kalman_tracks:
@@ -372,6 +378,34 @@ class Tracker:
 				self.kalman_tracks_new.remove(item)
 				rospy.logwarn("car [%d] has been added",item.id)
 				self.kalman_tracks.append(item)
+
+		states_new_kalman = []
+		
+		for item_new_kalman in self.kalman_tracks_new:
+			#print(states_new_kalman)
+			states_new_kalman.append(item_new_kalman.load_z())
+		
+		iou_table_for_nms = self.iou_matching(self.kalman_tracks,states_new_kalman)
+
+		
+		iou_table_for_nms = np.array(iou_table_for_nms)
+		print("IOUUUUU",iou_table_for_nms,iou_table_for_nms.shape)
+		for row in range(iou_table_for_nms.shape[0]):
+			for col in range(iou_table_for_nms.shape[1]):
+				
+				print('?',row,col,iou_table_for_nms[row][col])
+				if iou_table_for_nms[row,col] != 0:
+					print("ban",row,col)
+					rospy.logwarn("tracker %d has been banned ",self.kalman_tracks_new[col].id)
+					print(len(self.kalman_tracks_new))
+					for idx,item in enumerate(self.kalman_tracks_new):
+						print('askdapd',self.kalman_tracks_new[idx].id)
+						if self.kalman_tracks_new[col].id == item.id:
+							self.kalman_tracks_new[col].id = self.kalman_tracks[row].id
+
+					#self.kalman_tracks_new[col]  = copy.deepcopy(self.kalman_tracks_row[row] )
+					
+					#self.kalman_tracks_new.remove(self.kalman_tracks_new[col])
 
 		
 
