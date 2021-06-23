@@ -60,11 +60,11 @@ class KalmanBoxTracker:
 			])
 
 
-		self.kf.R[2:,2:] *= 1
+		self.kf.R[2:,2:] *= 100
 		self.kf.P[4:,4:] *= 100
 		self.kf.P *= 100.
-		self.kf.Q[-1,-1] *= 0.1
-		self.kf.Q[4:,4:] *= 0.1
+		self.kf.Q[-1,-1] *= 5
+		self.kf.Q[4:,4:] *= 5
 
 	
 		
@@ -165,16 +165,21 @@ class Tracker:
 			for tracker in self.kalman_tracks:
 				
 				u,v,s,r = tracker.load_z()
-
+				a,b,c,d = self.get_box_point(u,v,s,r)
 				#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
 				uu,vv,ss,rr = tracker.prediction(u,v,s,r)
-				#self.draw(uu,vv,ss,rr,'kalman'+str(tracker.id),tracker.color)
+				# self.draw(uu,vv,ss,rr,'car'+str(tracker.id),tracker.color)
+
+				a,b,c,d = self.get_box_point(u,v,s,r)
+				aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
 				tracker.save_z(uu,vv,ss,rr)
-				
+				print("$$$$$$$$$$$$$$$$$")
+				print(a,b,c,d)
+				print(aa,bb,cc,dd)
 
 			measurement_list = self.get_measurement(self.object_state)
 
-			print("measurement_list {}".format(measurement_list))
+			#print("measurement_list {}".format(measurement_list))
 			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)
 
 			self.optimal_assign(iou_table,measurement_list)
@@ -201,7 +206,7 @@ class Tracker:
 			for idx_kalman,tracker in enumerate(self.kalman_tracks):
 				
 				u_tracker ,v_tracker ,s_tracker, r_tracker = tracker.load_z()
-				self.draw(u_tracker ,v_tracker ,s_tracker, r_tracker, tracker.id, tracker.color)
+
 				u_tracker ,v_tracker ,s_tracker, r_tracker = self.get_box_point(u_tracker ,v_tracker ,s_tracker, r_tracker)
 
 				tracker_box = box(u_tracker ,v_tracker ,s_tracker, r_tracker)
@@ -209,14 +214,14 @@ class Tracker:
 
 
 				u_measurement, v_measurement, s_measurement, r_measurement = measurement
-				# self.draw(u_measurement, v_measurement, s_measurement, r_measurement,'yolo',(0,255,0))
+				
 				u_measurement, v_measurement, s_measurement, r_measurement = self.get_box_point(u_measurement, v_measurement, s_measurement, r_measurement)
 
 				measuerment_box = box(u_measurement, v_measurement, s_measurement, r_measurement)
 
 				iou_table[idx_kalman][idx_measurement] = self.iou(tracker_box,measuerment_box)
 
-		iou_table = -iou_table - np.min(-iou_table)
+		#iou_table = -iou_table - np.min(-iou_table)
 		return iou_table
 
 	def optimal_assign(self, iou_table,measurement_list):
@@ -230,7 +235,7 @@ class Tracker:
 		row_ind, col_ind = linear_sum_assignment(iou_table)
 
 		optimal_assignment = iou_table[row_ind,col_ind]
-			
+		print('optimal assign {}\n'.format(optimal_assignment))
 		assigned_col = []
 		assigned_row = []
 	
@@ -244,13 +249,22 @@ class Tracker:
 			s_measurement = measurement_list[col[0]][2]
 			r_measurement = measurement_list[col[0]][3]
 
-			# Matching 
-			self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+		# 	# Matching 
+		# 	self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+
+
+		#draw 
+
+		for tracker in self.kalman_tracks:
+
+			u,v,s,r = tracker.load_z()
+
+			self.draw(u,v,s,r,tracker.id, tracker.color)
 
 	 	
-		# Find unassigned objects	
-		iou_row_list = np.arange(iou_table.shape[0])
-		iou_col_list = np.arange(iou_table.shape[1])
+		# # Find unassigned objects	
+		# iou_row_list = np.arange(iou_table.shape[0])
+		# iou_col_list = np.arange(iou_table.shape[1])
 
 		
 		# for row in iou_row_list:
@@ -302,60 +316,66 @@ class Tracker:
 	    
 	def check_if_overlapped(self,box_a,box_b,iou_box):
 
-		print((box_a.xmin <= iou_box.xmin <= box_a.xmax),(box_a.ymin <= iou_box.ymin <= box_a.ymax),(box_b.xmin <= iou_box.xmin <= box_b.xmax), (box_b.ymin <= iou_box.ymin <= box_b.ymax))
+		#print((box_a.xmin < iou_box.xmin < box_a.xmax),(box_a.ymin < iou_box.ymin < box_a.ymax),(box_b.xmin <iou_box.xmin < box_b.xmax), (box_b.ymin < iou_box.ymin < box_b.ymax))
 		
-		if (((box_a.xmin < iou_box.xmin < box_a.xmax) and\
-			(box_a.ymin < iou_box.ymin < box_a.ymax)) or\
-			((box_b.xmin < iou_box.xmin < box_b.xmax) and\
-			(box_b.ymin < iou_box.ymin < box_b.ymax))) or\
-		(((box_a.xmin < iou_box.xmax < box_a.xmax) and\
-			(box_a.ymin < iou_box.ymin < box_a.ymax)) or\
-			((box_b.xmin < iou_box.xmax < box_b.xmax) and\
-			(box_b.ymin < iou_box.ymin < box_b.ymax))) :
+		# if (((box_a.xmin < iou_box.xmin < box_a.xmax) and\
+		# 	(box_a.ymin < iou_box.ymin < box_a.ymax)) or\
+		# 	((box_b.xmin < iou_box.xmin < box_b.xmax) and\
+		# 	(box_b.ymin < iou_box.ymin < box_b.ymax))) or\
+		# (((box_a.xmin < iou_box.xmax < box_a.xmax) and\
+		# 	(box_a.ymin < iou_box.ymin < box_a.ymax)) or\
+		# 	((box_b.xmin < iou_box.xmax < box_b.xmax) and\
+		# 	(box_b.ymin < iou_box.ymin < box_b.ymax))) :
 
-		
+		if (box_a.xmin < iou_box.xmin < box_a.xmax) or (box_b.xmin < iou_box.xmin < box_b.xmax): 
 		    return True
 		else:
 		    return False
 
 	def iou(self,box_a,box_b):
 
-		# print( box_a.xmin, box_a.ymin, box_a.xmax, box_a.ymax)
-
-	    box_a_area = np.abs(box_a.xmax-box_a.xmin) * np.abs(box_a.ymax-box_a.ymin)
-	    box_b_area = np.abs(box_b.xmax-box_b.xmin) * np.abs(box_b.ymax-box_b.ymin)
-
-	    iou_xmin = np.max([box_a.xmin,box_b.xmin])
-	    iou_ymin = np.max([box_a.ymin,box_b.ymin])
-
-	    iou_xmax = np.min([box_a.xmax,box_b.xmax])
-	    iou_ymax = np.min([box_a.ymax,box_b.ymax])
-
-	    iou_width = np.abs(iou_xmax-iou_xmin)
-	    iou_height = np.abs(iou_ymax-iou_ymin)
-	    
-	    iou_box = box(iou_xmin,iou_ymin,iou_xmax,iou_ymax)
-
-	    # self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_box.xmin),int(iou_box.ymin))\
-	    # 	, (int(iou_box.xmax), int(iou_box.ymax)), (255,255,255),-1)
-
-	    # self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_a.xmin),int(box_a.ymin))\
-	    # 	, (int(box_a.xmax), int(box_b.ymax)), (255,255,0),1)
 
 
-	    self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_b.xmin),int(box_b.ymin))\
-	    	, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),1)
+		box_a_area = np.abs(box_a.xmax-box_a.xmin) * np.abs(box_a.ymax-box_a.ymin)
+		box_b_area = np.abs(box_b.xmax-box_b.xmin) * np.abs(box_b.ymax-box_b.ymin)
+
+		iou_xmin = np.max([box_a.xmin,box_b.xmin])
+		iou_ymin = np.max([box_a.ymin,box_b.ymin])
+
+		iou_xmax = np.min([box_a.xmax,box_b.xmax])
+		iou_ymax = np.min([box_a.ymax,box_b.ymax])
+
+		iou_width = np.abs(iou_xmax-iou_xmin)
+		iou_height = np.abs(iou_ymax-iou_ymin)
+
+		box_iou = box(iou_xmin,iou_ymin,iou_xmax,iou_ymax)
+
+		print('box a : ', box_a.xmin, box_a.ymin, box_a.xmax, box_a.ymax)
+		print('box b : ', box_b.xmin, box_b.ymin, box_b.xmax, box_b.ymax)
+		print('box iou : ', box_iou.xmin, box_iou.ymin, box_iou.xmax, box_iou.ymax)
+
+		# self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_iou.xmin),int(box_iou.ymin))\
+		# 	, (int(box_iou.xmax), int(box_iou.ymax)), (255,255,255),-1)
+
+		# self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_a.xmin),int(box_a.ymin))\
+		# 	, (int(box_a.xmax), int(box_b.ymax)), (255,255,0),1)
 
 
-	    if self.check_if_overlapped(box_a,box_b,iou_box):
-	        overlapping_region = iou_width * iou_height
-	        combined_region = box_a_area + box_b_area - overlapping_region
-	        IOU = overlapping_region/combined_region
-	    else:
+		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_b.xmin),int(box_b.ymin))\
+			, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),1)
 
-	        IOU = 0
-	    
-	    return IOU
+
+		if self.check_if_overlapped(box_a,box_b,box_iou):
+		    overlapping_region = iou_width * iou_height
+		    combined_region = box_a_area + box_b_area - overlapping_region
+		    IOU = overlapping_region/float(combined_region)
+		    print('IOU : ',IOU)
+		else:
+		    IOU = 0
+		    print('IOU : ',IOU)
+
+		
+		return IOU
 
 
 
