@@ -26,12 +26,18 @@ class KalmanBoxTracker:
 
 	_counter = 0
 	
-	def __init__(self):
+	def __init__(self,label):
 		# Kalman Filter 
 		self.age = 30
 		KalmanBoxTracker._counter +=1
 
-		self.id = KalmanBoxTracker._counter
+		if label == 1:
+			label = "car"
+		elif label == 2:
+			label = "truck"
+		elif label == 3:
+			label = "person"
+		self.id = label + str(KalmanBoxTracker._counter)
 
 		self.color = (np.random.randint(255),np.random.randint(255),np.random.randint(255))
 
@@ -139,13 +145,21 @@ class Tracker:
 			v = data.results[idx].y_center
 			s = data.results[idx].w * data.results[idx].h
 			r = float(data.results[idx].w) / float(data.results[idx].h)
-			
+
+			label = data.results[idx].label
+
+			if label == "car":
+				label = 1
+			elif label == "truck":
+				label = 2
+			elif label == "person":
+				label = 3
 
 
 			
 			self.object_state.append(
 			[
-				np.array([u,v,s,r,self.IDnum])	
+				np.array([u,v,s,r,label])	
 			])
 
 	
@@ -162,7 +176,8 @@ class Tracker:
 					
 					u,v,s,r = state[0][:4]
 					
-					tracker = KalmanBoxTracker()
+					state[0][-1]
+					tracker = KalmanBoxTracker(label)
 
 					tracker.save_z(u,v,s,r)
 					
@@ -257,8 +272,11 @@ class Tracker:
 				tracker_box = box(u_tracker ,v_tracker ,s_tracker, r_tracker)
 
 
-
-				u_measurement, v_measurement, s_measurement, r_measurement = measurement
+				print(len(measurement))
+				if len(measurement) == 5:
+					u_measurement, v_measurement, s_measurement, r_measurement = measurement[:-1]
+				elif len(measurement) == 4:
+					u_measurement, v_measurement, s_measurement, r_measurement = measurement
 				
 				u_measurement, v_measurement, s_measurement, r_measurement = self.get_box_point(u_measurement, v_measurement, s_measurement, r_measurement)
 
@@ -349,14 +367,30 @@ class Tracker:
 			v_measurement = measurement_list[col][1]
 			s_measurement = measurement_list[col][2]
 			r_measurement = measurement_list[col][3]
+			label = measurement_list[col][-1]
 
 			if col not in assigned_row:
 				#print('new detection',col)
-				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
+
+
+
+				# label = data.results[idx].label
+
+				if label == "car":
+					label = 1
+				elif label == "truck":
+					label = 2
+				elif label == "person":
+					label = 3
+
+
+				# label = measurement_list[col][-4]
+				tracker = KalmanBoxTracker(label) # <- Tracker dltkdgka
+
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
 				#self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
 				tracker.hit = 0
-				rospy.logwarn("car [%d] has been added  %d col in iou table",tracker.id, col )
+				rospy.logwarn("car [%s] has been added  %d col in iou table",tracker.id, col )
 				self.kalman_tracks_new.append(tracker)
 
 		# print("IOU \n {}".format(iou_table))
@@ -369,14 +403,14 @@ class Tracker:
 			# 	rospy.logerr("car [%d]'s hit : %d",item.id,item.hit)
 			if item.hit < 0:
 				kalman_tracks.remove(item)
-				rospy.logwarn("car [%d] has been removed",item.id)
+				rospy.logwarn("car [%s] has been removed",item.id)
 
 		for item in self.kalman_tracks_new:
 
 			if item.hit >= 1:#item.age/3 : # ADDAGE
 				self.kalman_tracks.append(item)
 				self.kalman_tracks_new.remove(item)
-				rospy.logwarn("car [%d] has been added",item.id)
+				rospy.logwarn("car [%s] has been added",item.id)
 				
 
 		states_new_kalman = []
@@ -396,7 +430,7 @@ class Tracker:
 				#print('?',row,col,iou_table_for_nms[row][col])
 				if iou_table_for_nms[row,col] != 0:
 					#print("ban",row,col)
-					rospy.logwarn("tracker %d has been banned ",self.kalman_tracks_new[col].id)
+					rospy.logwarn("tracker %s has been banned ",self.kalman_tracks_new[col].id)
 					#print(len(self.kalman_tracks_new))
 					for idx,item in enumerate(self.kalman_tracks_new):
 						#print('askdapd',self.kalman_tracks_new[idx].id)
@@ -416,7 +450,7 @@ class Tracker:
 		measurement_list = []
 		for state in object_state_list:
 
-			measurement_list.append(state[0][:4])
+			measurement_list.append(state[0][:5])
 
 		return measurement_list
 
