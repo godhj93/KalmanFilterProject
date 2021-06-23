@@ -25,16 +25,17 @@ class box:
 class KalmanBoxTracker:
 
 	_counter = 0
-
+	
 	def __init__(self):
 		# Kalman Filter 
+		self.age = 15
 		KalmanBoxTracker._counter +=1
 
 		self.id = KalmanBoxTracker._counter
 
 		self.color = (np.random.randint(255),np.random.randint(255),np.random.randint(255))
 
-		self.hit = 5
+		self.hit = self.age
 		#print("Created new tracker, ID : ",self.id)
 
 		self.kf = KalmanFilter(dim_x=7, dim_z=4)
@@ -161,27 +162,23 @@ class Tracker:
 			print("number of tracker is {}".format(len(self.kalman_tracks)))
 
 			# Keep going to prediction
-			for tracker in self.kalman_tracks:
-				
-				u,v,s,r = tracker.load_z()
-				a,b,c,d = self.get_box_point(u,v,s,r)
-				#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
-				uu,vv,ss,rr = tracker.prediction(u,v,s,r)
-				# self.draw(uu,vv,ss,rr,'car'+str(tracker.id),tracker.color)
+			self.kalman_run(self.kalman_tracks)
 
-				a,b,c,d = self.get_box_point(u,v,s,r)
-				aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
-				tracker.save_z(uu,vv,ss,rr)
-				# print("$$$$$$$$$$$$$$$$$")
-				# print(a,b,c,d)
-				# print(aa,bb,cc,dd)
+			self.kalman_run(self.kalman_tracks_new)
 
 			measurement_list = self.get_measurement(self.object_state)
+			
 
-			#print("measurement_list {}".format(measurement_list))
-			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)
+			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)			
+			self.optimal_assign(self.kalman_tracks,iou_table,measurement_list)
 
-			self.optimal_assign(iou_table,measurement_list)
+			
+			# iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
+			# self.optimal_assign(self.kalman_tracks_new,iou_table_new,measurement_list)
+
+
+
+
 	
 
 	# def check_if_overlapped(self,box_a,box_b,iou_box):
@@ -191,7 +188,23 @@ class Tracker:
 	#         return True
 	#     else:
 	#         return False
+	def kalman_run(self,kalman_tracks):
 
+	# Keep going to prediction
+		for tracker in kalman_tracks:
+			
+			u,v,s,r = tracker.load_z()
+			a,b,c,d = self.get_box_point(u,v,s,r)
+			#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
+			uu,vv,ss,rr = tracker.prediction(u,v,s,r)
+			# self.draw(uu,vv,ss,rr,'car'+str(tracker.id),tracker.color)
+
+			a,b,c,d = self.get_box_point(u,v,s,r)
+			aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
+			tracker.save_z(uu,vv,ss,rr)
+			# print("$$$$$$$$$$$$$$$$$")
+			# print(a,b,c,d)
+			# print(aa,bb,cc,dd)
 
 	def iou_matching(self,kalman_tracks,measurement_list):
 
@@ -223,7 +236,7 @@ class Tracker:
 		#iou_table = -iou_table - np.min(-iou_table)
 		return -iou_table
 
-	def optimal_assign(self, iou_table,measurement_list):
+	def optimal_assign(self, kalman_tracks,iou_table,measurement_list):
 		
 		# Hungraian algorithm
 
@@ -252,12 +265,16 @@ class Tracker:
 			if iou_table[row[0]][col[0]] == 0:
 				pass
 			else:
-				self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+
+				if kalman_tracks[row[0]].hit >= 5:
+					kalman_tracks[row[0]].hit = 15
+
 
 
 		#draw 
 
-		for tracker in self.kalman_tracks:
+		for tracker in kalman_tracks:
 
 			u,v,s,r = tracker.load_z()
 
@@ -272,33 +289,34 @@ class Tracker:
 		for row in iou_row_list:
 			if row not in assigned_row:
 				
-				self.kalman_tracks[row].hit -= 1
-				rospy.loginfo("tracker [%d]'s hit : %d",row,self.kalman_tracks[row].hit)
-				# print('hit',self.kalman_tracks[row].hit)
+				kalman_tracks[row].hit -= 1
+				rospy.loginfo("tracker [%d]'s hit : %d",row,kalman_tracks[row].hit)
+				# print('hit',kalman_tracks[row].hit)
 	
 		# 	else:
 		# 		pass
 	
-			if self.kalman_tracks[row].hit < 0 :
+			if kalman_tracks[row].hit < 0 :
 			
-				self.kalman_tracks.remove(self.kalman_tracks[row])
+				kalman_tracks.remove(kalman_tracks[row])
 				rospy.loginfo("tracker [%d] has been removed",row)
 		# 	elif self.kalman_tracks[row].hit <= 0 :
 		# 		pass
 
-		# for col in iou_col_list:
+		for col in iou_col_list:
 
-		# 	u_measurement = measurement_list[col][0]
-		# 	v_measurement = measurement_list[col][1]
-		# 	s_measurement = measurement_list[col][2]
-		# 	r_measurement = measurement_list[col][3]
+			u_measurement = measurement_list[col][0]
+			v_measurement = measurement_list[col][1]
+			s_measurement = measurement_list[col][2]
+			r_measurement = measurement_list[col][3]
 
-		# 	if col not in assigned_row:
-		# 		print('new detection',col)
-		# 		tracker = KalmanBoxTracker()
-		# 		tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+			if col not in assigned_row:
+				print('new detection',col)
+				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
+				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
 
-		# 		self.kalman_tracks.append(tracker)
+				self.kalman_tracks_new.append(tracker)
+				rospy.logwarn(len(self.kalman_tracks_new))
 
 
 
