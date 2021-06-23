@@ -259,7 +259,7 @@ class Tracker:
 
 			u,v,s,r = tracker.load_z()
 
-			self.draw(u,v,s,r,tracker.id, tracker.color)
+			self.draw(u,v,s,r,'car' + str(tracker.id), tracker.color)
 
 	 	
 		# # Find unassigned objects	
