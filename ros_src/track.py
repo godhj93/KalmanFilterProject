@@ -65,14 +65,14 @@ class KalmanBoxTracker:
 		# self.kf.Q[-1,-1] *= 0.1
 		# self.kf.Q[4:,4:] *= 0.1
 
-		self.kf.R[0,0] = 1
-		self.kf.R[1,1] = 1
-		self.kf.R[2,2] = 1
-		self.kf.R[3,3] = 1
+		self.kf.R[0,0] = 100
+		self.kf.R[1,1] = 100
+		self.kf.R[2,2] = 10
+		self.kf.R[3,3] = 10
 		#self.kf.P[4:,4:] *= 100
-		self.kf.P *= 100
-		self.kf.Q[0,0] = .1
-		self.kf.Q[1,1] = .1
+		self.kf.P *= 1000
+		self.kf.Q[0,0] = 10
+		self.kf.Q[1,1] = 10
 		self.kf.Q[2,2] = 10
 		self.kf.Q[3,3] = 10
 
@@ -434,8 +434,8 @@ class Tracker:
 		# 	, (int(box_a.xmax), int(box_b.ymax)), (255,255,0),1)
 
 
-		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_b.xmin),int(box_b.ymin))\
-			, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),1)
+		# self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_b.xmin),int(box_b.ymin))\
+		# 	, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),1)
 
 
 		if self.check_if_overlapped(box_a,box_b,box_iou):
