@@ -59,15 +59,20 @@ class KalmanBoxTracker:
 			[0,0,0,1,0,0,0]
 			])
 
+		# self.kf.R[2:,2:] *= 10
+		# self.kf.P[4:,4:] *= 10
+		# self.kf.P *= 100.
+		# self.kf.Q[-1,-1] *= 0.1
+		# self.kf.Q[4:,4:] *= 0.1
 
-		self.kf.R[0,0] = 100
-		self.kf.R[1,1] = 100
-		self.kf.R[2,2] = 10
-		self.kf.R[3,3] = 10
+		self.kf.R[0,0] = 1
+		self.kf.R[1,1] = 1
+		self.kf.R[2,2] = 1
+		self.kf.R[3,3] = 1
 		#self.kf.P[4:,4:] *= 100
-		self.kf.P *= 1000
-		self.kf.Q[0,0] = 10
-		self.kf.Q[1,1] = 10
+		self.kf.P *= 100
+		self.kf.Q[0,0] = .1
+		self.kf.Q[1,1] = .1
 		self.kf.Q[2,2] = 10
 		self.kf.Q[3,3] = 10
 
@@ -223,6 +228,7 @@ class Tracker:
 
 			a,b,c,d = self.get_box_point(u,v,s,r)
 			aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
+			self.draw(uu,vv,ss,rr,'kalman' + str(tracker.id),tracker.color)
 			tracker.save_z(uu,vv,ss,rr)
 			# print("$$$$$$$$$$$$$$$$$")
 			# print(a,b,c,d)
@@ -346,7 +352,7 @@ class Tracker:
 				self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
 				tracker.hit = 0
 				rospy.logwarn("car [%d] has been added  %d col in iou table",tracker.id, col )
-				self.kalman_tracks_new.append(tracker)
+				#self.kalman_tracks_new.append(tracker)
 
 		print("IOU \n {}".format(iou_table))
 		for item in kalman_tracks:
