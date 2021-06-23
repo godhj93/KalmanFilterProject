@@ -220,7 +220,7 @@ class Tracker:
 
 			u,v,s,r = tracker.load_z()
 
-			self.draw(u,v,s,r,'car' + str(tracker.id), tracker.color)
+			self.draw(u,v,s,r,tracker.id, tracker.color)
 
 		cv2.imshow('window', self.cv_rgb_image)
 		cv2.waitKey(3)	
@@ -272,7 +272,7 @@ class Tracker:
 				tracker_box = box(u_tracker ,v_tracker ,s_tracker, r_tracker)
 
 
-				print(len(measurement))
+				#print(len(measurement))
 				if len(measurement) == 5:
 					u_measurement, v_measurement, s_measurement, r_measurement = measurement[:-1]
 				elif len(measurement) == 4:
@@ -390,7 +390,7 @@ class Tracker:
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
 				#self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
 				tracker.hit = 0
-				rospy.logwarn("car [%s] has been added  %d col in iou table",tracker.id, col )
+				rospy.logwarn("[%s] has been added  %d col in iou table",tracker.id, col )
 				self.kalman_tracks_new.append(tracker)
 
 		# print("IOU \n {}".format(iou_table))
@@ -403,14 +403,14 @@ class Tracker:
 			# 	rospy.logerr("car [%d]'s hit : %d",item.id,item.hit)
 			if item.hit < 0:
 				kalman_tracks.remove(item)
-				rospy.logwarn("car [%s] has been removed",item.id)
+				rospy.logwarn("[%s] has been removed",item.id)
 
 		for item in self.kalman_tracks_new:
 
 			if item.hit >= 1:#item.age/3 : # ADDAGE
 				self.kalman_tracks.append(item)
 				self.kalman_tracks_new.remove(item)
-				rospy.logwarn("car [%s] has been added",item.id)
+				rospy.logwarn("[%s] has been added",item.id)
 				
 
 		states_new_kalman = []
