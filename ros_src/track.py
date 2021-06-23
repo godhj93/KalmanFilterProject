@@ -143,13 +143,21 @@ class Tracker:
 				np.array([u,v,s,r,self.IDnum])	
 			])
 
-		print(self.object_state)
-		for idx, item in enumerate(self.object_state):
+		# print(self.object_state)
+		# for idx, item in enumerate(self.object_state):
 
-			for i in range(len(self.object_state)):
-				if i != idx:
+		# 	for i in range(len(self.object_state)):
+		# 		if i != idx:
 
-					print('asd',i,idx,item)
+		# 			print('asd',i,idx)
+		# 			print(item[:2],self.object_state[i][:2])
+		# 			if (np.abs(np.array(item[:2]) - np.array(self.object_state[i][:2])) < 30).all():
+						
+		# 				rospy.logerr('asd')
+		# 				print(item[:2], self.object_state[i][:2])
+
+		# 				self.object_state.remove(self.object_state[i])
+
 
 		# for idx,item in enumerate(self.object_state):
 
