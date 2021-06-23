@@ -302,8 +302,8 @@ class Tracker:
 				assigned_col.append(col[0])
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 				kalman_tracks[row[0]].hit += 1
-				if kalman_tracks[row[0]].hit >= 15:
-					kalman_tracks[row[0]].hit = 15
+				if kalman_tracks[row[0]].hit >= kalman_tracks[row[0]].age:
+					kalman_tracks[row[0]].hit = kalman_tracks[row[0]].age
 					# rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
 				# if kalman_tracks[row[0]].hit >= 15 and kalman_tracks[row[0]] not in self.kalman_tracks:
 				#  	kalman_tracks[row[0]].hit = 15
@@ -373,10 +373,11 @@ class Tracker:
 
 		for item in self.kalman_tracks_new:
 
-			if item.hit >=15 :
+			if item.hit >= item.age/3 : # ADDAGE
+				self.kalman_tracks.append(item)
 				self.kalman_tracks_new.remove(item)
 				rospy.logwarn("car [%d] has been added",item.id)
-				self.kalman_tracks.append(item)
+				
 
 		states_new_kalman = []
 		
