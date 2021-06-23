@@ -60,11 +60,16 @@ class KalmanBoxTracker:
 			])
 
 
-		self.kf.R[2:,2:] *= 100
-		self.kf.P[4:,4:] *= 100
-		self.kf.P *= 100.
-		self.kf.Q[-1,-1] *= 5
-		self.kf.Q[4:,4:] *= 5
+		# self.kf.R[2:,2:] *= 1
+		self.kf.R[:,:] *= 10
+		self.kf.P[:,:] *= 100
+		# self.kf.P *= 10.
+		self.kf.Q[0,0] *= 10
+		self.kf.Q[1,1] *= 10
+		self.kf.Q[2,2] *= 100
+		self.kf.Q[3,3] *= 100
+		# self.kf.Q[-1,-1] *= 1
+		# self.kf.Q[4:,4:] *= 1
 
 	
 		
@@ -173,15 +178,13 @@ class Tracker:
 			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)			
 			self.optimal_assign(self.kalman_tracks,iou_table,measurement_list)
 
-
-			
 			if self.kalman_tracks_new:
 				for item in self.kalman_tracks_new:
 					print(item.id)
 
 				iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
 				self.optimal_assign(self.kalman_tracks_new,iou_table_new,measurement_list)
-				#print("ioutablenew\n",iou_table_new)
+				
 
 	#draw 
 
@@ -214,12 +217,12 @@ class Tracker:
 			u,v,s,r = tracker.load_z()
 			a,b,c,d = self.get_box_point(u,v,s,r)
 			#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
-			uu,vv,ss,rr = tracker.prediction(u,v,s,r)
-			# self.draw(uu,vv,ss,rr,'car'+str(tracker.id),tracker.color)
+			#uu,vv,ss,rr = tracker.prediction(u,v,s,r)
+			#self.draw(uu,vv,ss,rr,'kal'+str(tracker.id),tracker.color)
 
 			a,b,c,d = self.get_box_point(u,v,s,r)
-			aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
-			tracker.save_z(uu,vv,ss,rr)
+			#aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
+			#tracker.save_z(uu,vv,ss,rr)
 			# print("$$$$$$$$$$$$$$$$$")
 			# print(a,b,c,d)
 			# print(aa,bb,cc,dd)
@@ -284,7 +287,7 @@ class Tracker:
 				pass
 			else:
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
-				kalman_tracks[row[0]].hit += 1
+				kalman_tracks[row[0]].hit =15
 				if kalman_tracks[row[0]].hit >= 15:
 					kalman_tracks[row[0]].hit = 15
 				# 	rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
@@ -312,7 +315,12 @@ class Tracker:
 			if row not in assigned_row:
 				
 				kalman_tracks[row].hit -= 1
+				u,v,s,r = kalman_tracks[row].load_z()
+				uu,vv,ss,rr = kalman_tracks[row].prediction(u,v,s,r)
+				self.draw(uu,vv,ss,rr, 'kkk' + str(kalman_tracks[row].id),kalman_tracks[row].color)
+				kalman_tracks[row].save_z(uu,vv,ss,rr)
 				rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
+
 				# if kalman_tracks[row].hit >= 15:
 				# 	kalman_tracks[row].hit = 15
 				# print('hit',kalman_tracks[row].hit)
@@ -354,7 +362,7 @@ class Tracker:
 
 			if item.hit >= 5 and item not in self.kalman_tracks:
 
-				self.kalman_tracks.append(item)
+				# self.kalman_tracks.append(item)
 				self.kalman_tracks_new.remove(item)
 
 		# for item in self.kalman_tracks_new:
