@@ -215,43 +215,42 @@ class Tracker:
 				measuerment_box = box(u_measurement, v_measurement, s_measurement, r_measurement)
 
 				iou_table[idx_kalman][idx_measurement] = self.iou(tracker_box,measuerment_box)
+
+		iou_table = -iou_table - np.min(-iou_table)
 		return iou_table
 
 	def optimal_assign(self, iou_table,measurement_list):
 		
 		# Hungraian algorithm
 
-		if 0 in iou_table:
-			rospy.logerr("there is zero value in table")
-
-		print("iou table \n {}".format(-iou_table))
+		print("iou table \n {}".format(iou_table))
 		#print("kalman table \n {}".format())
 		#print("measurement_list \n {}",measurement_list)
 
-		# row_ind, col_ind = linear_sum_assignment(-iou_table)
+		row_ind, col_ind = linear_sum_assignment(iou_table)
 
-		# optimal_assignment = iou_table[row_ind,col_ind]
+		optimal_assignment = iou_table[row_ind,col_ind]
 			
-		# assigned_col = []
-		# assigned_row = []
+		assigned_col = []
+		assigned_row = []
 	
-		# for idx in range(len(optimal_assignment)):
+		for idx in range(len(optimal_assignment)):
 			
-		# 	row, col = np.where(iou_table == optimal_assignment[idx])
-		# 	assigned_row.append(row[0])
-		# 	assigned_col.append(col[0])
-		# 	u_measurement = measurement_list[col[0]][0]
-		# 	v_measurement = measurement_list[col[0]][1]
-		# 	s_measurement = measurement_list[col[0]][2]
-		# 	r_measurement = measurement_list[col[0]][3]
+			row, col = np.where(iou_table == optimal_assignment[idx])
+			assigned_row.append(row[0])
+			assigned_col.append(col[0])
+			u_measurement = measurement_list[col[0]][0]
+			v_measurement = measurement_list[col[0]][1]
+			s_measurement = measurement_list[col[0]][2]
+			r_measurement = measurement_list[col[0]][3]
 
-		# 	# Matching 
-		# 	self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+			# Matching 
+			self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 
 	 	
-		# # Find unassigned objects	
-		# iou_row_list = np.arange(iou_table.shape[0])
-		# iou_col_list = np.arange(iou_table.shape[1])
+		# Find unassigned objects	
+		iou_row_list = np.arange(iou_table.shape[0])
+		iou_col_list = np.arange(iou_table.shape[1])
 
 		
 		# for row in iou_row_list:
@@ -268,8 +267,8 @@ class Tracker:
 			
 		# 		self.kalman_tracks.remove(self.kalman_tracks[row])
 		# 		rospy.loginfo("tracker [%d] has been removed",row)
-			# elif self.kalman_tracks[row].hit <= 0 :
-			# 	pass
+		# 	elif self.kalman_tracks[row].hit <= 0 :
+		# 		pass
 
 		# for col in iou_col_list:
 
@@ -289,10 +288,6 @@ class Tracker:
 
 		cv2.imshow('window', self.cv_rgb_image)
 		cv2.waitKey(3)	
-
-			
-
-
 
 	def get_measurement(self,object_state_list):
 
@@ -341,8 +336,8 @@ class Tracker:
 	    
 	    iou_box = box(iou_xmin,iou_ymin,iou_xmax,iou_ymax)
 
-	    self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_box.xmin),int(iou_box.ymin))\
-	    	, (int(iou_box.xmax), int(iou_box.ymax)), (255,255,255),-1)
+	    # self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_box.xmin),int(iou_box.ymin))\
+	    # 	, (int(iou_box.xmax), int(iou_box.ymax)), (255,255,255),-1)
 
 	    # self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_a.xmin),int(box_a.ymin))\
 	    # 	, (int(box_a.xmax), int(box_b.ymax)), (255,255,0),1)
@@ -352,15 +347,12 @@ class Tracker:
 	    	, (int(box_b.xmax), int(box_b.ymax)), (0,255,0),1)
 
 
-	    print('IOUBOXCAL',box_a_area,box_b_area)
 	    if self.check_if_overlapped(box_a,box_b,iou_box):
 	        overlapping_region = iou_width * iou_height
 	        combined_region = box_a_area + box_b_area - overlapping_region
 	        IOU = overlapping_region/combined_region
 	    else:
-	    	overlapping_region = iou_width * iou_height
-	        combined_region = box_a_area + box_b_area - overlapping_region
-	        print('IOU',overlapping_region/combined_region)
+
 	        IOU = 0
 	    
 	    return IOU
