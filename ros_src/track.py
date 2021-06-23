@@ -359,14 +359,14 @@ class Tracker:
 				rospy.logwarn("car [%d] has been added  %d col in iou table",tracker.id, col )
 				self.kalman_tracks_new.append(tracker)
 
-		print("IOU \n {}".format(iou_table))
+		# print("IOU \n {}".format(iou_table))
 		for item in kalman_tracks:
-			print("assigned row {}".format(assigned_row))
-			print("assigned col {}".format(assigned_col))
-			if item in self.kalman_tracks:
-				rospy.loginfo("car [%d]'s hit : %d",item.id,item.hit)
-			elif item in self.kalman_tracks_new:
-				rospy.logerr("car [%d]'s hit : %d",item.id,item.hit)
+			# print("assigned row {}".format(assigned_row))
+			# print("assigned col {}".format(assigned_col))
+			# if item in self.kalman_tracks:
+			# 	rospy.loginfo("car [%d]'s hit : %d",item.id,item.hit)
+			# elif item in self.kalman_tracks_new:
+			# 	rospy.logerr("car [%d]'s hit : %d",item.id,item.hit)
 			if item.hit < 0:
 				kalman_tracks.remove(item)
 				rospy.logwarn("car [%d] has been removed",item.id)
