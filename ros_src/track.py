@@ -281,7 +281,10 @@ class Tracker:
 				pass
 			else:
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
-				#kalman_tracks[row[0]].hit += 1
+				kalman_tracks[row[0]].hit += 1
+				if kalman_tracks[row[0]].hit >= 15:
+					kalman_tracks[row[0]].hit = 15
+					rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
 				# if kalman_tracks[row[0]].hit >= 15 and kalman_tracks[row[0]] not in self.kalman_tracks:
 				#  	kalman_tracks[row[0]].hit = 15
 				# 	self.kalman_tracks.append(kalman_tracks[row[0]])
