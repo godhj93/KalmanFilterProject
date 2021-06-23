@@ -7,6 +7,7 @@
     <!-- Load parameters -->
     <rosparam command="load" file="$(arg network_param_file)"/>
 
-    <node pkg="ros_tkdnn" name="ros_tkdnn" type="ros_tkdnn" respawn="true" output="screen">
-    </node>
+    <node pkg="ros_tkdnn" name="ros_tkdnn" type="ros_tkdnn" respawn="true" output="screen"/>
+    <node pkg="ros_tkdnn" name="tracker" type="track.py" respawn="true" output="screen"/>
+    
 </launch>

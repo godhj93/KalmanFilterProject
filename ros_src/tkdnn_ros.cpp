@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
 
         double fin = ros::Time::now().toSec(); // for FPS // for FPS
         
-        ROS_INFO("time : %f, FPS : %d", (fin-begin), int(1/(fin-begin))); // for FPS
+        //ROS_INFO("time : %f, FPS : %d", (fin-begin), int(1/(fin-begin))); // for FPS
     }
 
     std::cout<<"detection end\n";   

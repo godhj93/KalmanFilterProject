@@ -25,7 +25,9 @@ class KalmanBoxTracker:
 
 		self.id = KalmanBoxTracker._counter
 
-		self.hit = 0
+		self.color = (np.random.randint(255),np.random.randint(255),np.random.randint(255))
+
+		self.hit = 15 
 		#print("Created new tracker, ID : ",self.id)
 
 		self.kf = KalmanFilter(dim_x=7, dim_z=4)
@@ -130,211 +132,129 @@ class Tracker:
 
 
 		if self.firstRun == 0 :
+			print("first number of tracker",len(self.kalman_tracks))
+			
+			if self.object_state:
+				self.firstRun +=1 
+				# Kalman filter
 
-			self.firstRun +=1 
-			# Kalman filter
+				for state in self.object_state:
+					
+					u,v,s,r,ID = state[0][:5]
+					
+					tracker = KalmanBoxTracker()
+					
+					tracker.hit += 1
 
-			for state in self.object_state:
-				
-				u,v,s,r,ID = state[0][:5]
-				
-				tracker = KalmanBoxTracker()
-				
-				uu,vv,ss,rr = tracker.prediction(u,v,s,r)
+					uu,vv,ss,rr = tracker.prediction(u,v,s,r)
 
-				tracker.save_z(uu,vv,ss,rr)
-				
-				self.kalman_tracks.append(tracker)
+					tracker.save_z(uu,vv,ss,rr)
+					
+					self.kalman_tracks.append(tracker)
 
 
 		else:
-			print('====')
-			print(len(self.kalman_tracks))
-
-
+			print('===========================================')
+			print("number of tracker",len(self.kalman_tracks))
 			# Keep going to prediction
 			for tracker in self.kalman_tracks:
 				
-				#u,v,s,r = tracker.kf.x[:4]
 				u,v,s,r = tracker.load_z()
-				self.draw(u,v,s,r,'car'+str(tracker.id),0,255,0)
-				tracker.prediction(u,v,s,r)
-				#self.draw(u,v,s,r,'kalman',255,255,255)
-				#self.draw(u,v,s,r,'kalman', 0,255,255)
-
-			measurement_list = []
-			for state in self.object_state:
-
-				measurement_list.append(state[0][:4])
-
-
-				# tracker_new = KalmanBoxTracker()
-				# u,v,s,r=state[0][:4]
-
-				# tracker_new.save_z(u,v,s,r)
-				# #tracker_new.prediction(u,v,s,r) 
-
-				# #tracker_new.save_z(u,v,s,r)
-
-				# self.kalman_tracks_new.append(tracker_new)
-
-			
-
-			# #IOU matching
-			iou_table = np.zeros(shape=(len(self.kalman_tracks), len(measurement_list)))
-			#print(iou_table.shape)
-
-			for idx_measurement,measurement in enumerate(measurement_list):
-
-				for idx_kalman,tracker in enumerate(self.kalman_tracks):
-					
-					u_tracker ,v_tracker ,s_tracker, r_tracker = tracker.load_z()
-
-					u_measurement, v_measurement, s_measurement, r_measurement = measurement
-
-					
-					#self.draw(u_measurement, v_measurement, s_measurement, r_measurement,'measure',255,0,0)
-
-
-					
-					iou_table[idx_kalman][idx_measurement] = self.iou(
-												[u_tracker ,v_tracker ,s_tracker, r_tracker],
-												[u_measurement, v_measurement, s_measurement, r_measurement]
-												)
-			#print('iou_table',iou_table)
-
-			row_ind, col_ind = linear_sum_assignment(-iou_table)
-
-			optimal_assignment = iou_table[row_ind,col_ind]
-			
-			assigned_col = []
-			assigned_row = []
-
-			
-			for idx in range(len(optimal_assignment)):
+				self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
+				uu,vv,ss,rr = tracker.prediction(u,v,s,r)
+				tracker.save_z(uu,vv,ss,rr)
 				
-				row, col = np.where(iou_table == optimal_assignment[idx])
-				assigned_row.append(row[0])
-				assigned_row.append(col[0])
-				u_measurement = measurement_list[col[0]][0]
-				v_measurement = measurement_list[col[0]][1]
-				s_measurement = measurement_list[col[0]][2]
-				r_measurement = measurement_list[col[0]][3]
 
-				self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+			measurement_list = self.get_measurement(self.object_state)
 
-			 	
-		
-			iou_row_list = np.arange(iou_table.shape[0])
-			iou_col_list = np.arange(iou_table.shape[1])
 
+			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)
+
+			self.optimal_assign(iou_table,measurement_list)
 			
-			for row in iou_row_list:
-				if row not in assigned_row:
-					print('@@@@@@@@@@@@@@@@',row)
-					self.kalman_tracks[row].hit += 1
-					print('hit',self.kalman_tracks[row].hit)
-					# if self.kalman_tracks[row].hit >= 3:
-					# 	self.kalman_tracks_new.append(self.kalman_tracks[row])
-					# print(self.kalman_tracks[row].id,self.kalman_tracks[row].hit)
-				else:
-					pass#self.kalman_tracks[row].hit += 1
-				# elif row in assigned_row:
-				# 	self.kalman_tracks[row].hit += 1
+	def iou_matching(self,kalman_tracks,measurement_list):
 
-				if self.kalman_tracks[row].hit >= 2 :
-					print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-					self.kalman_tracks.remove(self.kalman_tracks[row])
-				elif self.kalman_tracks[row].hit <= 0 :
-					pass
+		# #IOU matching
+		iou_table = np.zeros(shape=(len(self.kalman_tracks), len(measurement_list)))
+		#print(iou_table.shape)
 
-			for col in iou_col_list:
+		# Create IOU table
+		for idx_measurement,measurement in enumerate(measurement_list):
 
-				u_measurement = measurement_list[col][0]
-				v_measurement = measurement_list[col][1]
-				s_measurement = measurement_list[col][2]
-				r_measurement = measurement_list[col][3]
+			for idx_kalman,tracker in enumerate(self.kalman_tracks):
+				
+				u_tracker ,v_tracker ,s_tracker, r_tracker = tracker.load_z()
 
-				if col not in assigned_row:
-					print('new detection',col)
-					tracker = KalmanBoxTracker()
-					tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+				u_measurement, v_measurement, s_measurement, r_measurement = measurement
 
-					self.kalman_tracks.append(tracker)
+				iou_table[idx_kalman][idx_measurement] = self.iou(
+											[u_tracker ,v_tracker ,s_tracker, r_tracker],
+											[u_measurement, v_measurement, s_measurement, r_measurement]
+											)
+		return iou_table
 
-					
+	def optimal_assign(self, iou_table,measurement_list):
+		
+		# Hungraian algorithm
 
-			# 	# for idx in range(len(optimal_assignment)):
+		row_ind, col_ind = linear_sum_assignment(-iou_table)
 
-
-
-			# 	# 	# row,col = np.where(iou_table == optimal_assignment[idx])
-			# 	# 	# assigned_row.append(row[0])
-			# 	# 	# assigned_col.append(col[0])
-			# 	# 	# u,v,s,r = self.kalman_tracks[row[0]].load_z()
-
-			# 	# 	# uu,vv,ss,rr = self.kalman_tracks[row[0]].prediction(u,v,s,r)
-
-			# 	# 	self.kalman_tracks_new.append(self.kalman_tracks[row[0]])
-			# 	# 	self.draw(uu,vv,ss,rr,'',0,255,255)
-
-
-
-
-
-			# # iou_table_row_list = np.arange(iou_table.shape[0])
-			# # iou_table_col_list = np.arange(iou_table.shape[1])
-
-			# #print(iou_table_row_list)
-			# # if len(assigned_row) > 0 :
-			# # 	for item_row in iou_table_row_list:
-			# # 		print(item_row,assigned_row)
-			# # 		if item_row not in assigned_row:
-			# # 			print('gd')
-			# # if len(assigned_col) > 0 : 
-			# # 	for item_col in iou_table_col_list:
-			# # 		if item_col not in assigned_col:
-						
-			# # 			u,v,s,r = self.kalman_tracks_new[item_col].load_z()
-			# # 			self.kalman_tracks_new[item_col].prediction(u,v,s,r)
-
-			# self.kalman_tracks = self.kalman_tracks_new
-
-			# self.kalman_tracks_new = []
-
-
-
+		optimal_assignment = iou_table[row_ind,col_ind]
 			
+		assigned_col = []
+		assigned_row = []
+	
+		for idx in range(len(optimal_assignment)):
+			
+			row, col = np.where(iou_table == optimal_assignment[idx])
+			assigned_row.append(row[0])
+			assigned_col.append(col[0])
+			u_measurement = measurement_list[col[0]][0]
+			v_measurement = measurement_list[col[0]][1]
+			s_measurement = measurement_list[col[0]][2]
+			r_measurement = measurement_list[col[0]][3]
 
+			# Matching 
+			self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 
-				# self.object_state[col[0]][0][-1] = kalman_id
+	 	
+		# Find unassigned objects	
+		iou_row_list = np.arange(iou_table.shape[0])
+		iou_col_list = np.arange(iou_table.shape[1])
 
-				# self.kalman_tracks[col[0]] = self.kalman_tracks[int(kalman_id)]
-
-				# print(len(self.kalman_tracks),self.kalman_tracks)
-
-			# After matching, clear list
-			# self.kalman_boxes = []
 		
-		# for i,state in enumerate(self.object_state):
+		for row in iou_row_list:
+			if row not in assigned_row:
+				# print('@@@@@@@@@@@@@@@@',row)
+				self.kalman_tracks[row].hit -= 1
+				# print('hit',self.kalman_tracks[row].hit)
+	
+			else:
+				pass
+	
+			if not self.kalman_tracks[row] and self.kalman_tracks[row].hit < 0 :
+			
+				self.kalman_tracks.remove(self.kalman_tracks[row])
+				rospy.loginfo("tracker [%d] has been removed",row)
+			# elif self.kalman_tracks[row].hit <= 0 :
+			# 	pass
 
-		# 	tracker = KalmanBoxTracker()
-		# 	self.kalman_tracks.append(tracker)
- 
-		
+		# for col in iou_col_list:
 
-		# tracker_list = []
-		# for tracker,state in zip(self.kalman_tracks,self.object_state):
-		# 	u,v,s,r,ID = state[0][0],state[0][1],state[0][2],state[0][3],state[0][4]
+		# 	u_measurement = measurement_list[col][0]
+		# 	v_measurement = measurement_list[col][1]
+		# 	s_measurement = measurement_list[col][2]
+		# 	r_measurement = measurement_list[col][3]
 
-		# 	uu, vv, ss, rr , kalman_id = tracker.prediction(state)
-		# 	tracker_list.append(tracker)
-		# 	self.kalman_boxes.append(np.array([uu, vv, ss, rr , ID]))
-		# 	self.draw(u,v,s,r,ID,255,0,0)
-		# 	self.draw(uu,vv,ss,rr,kalman_id,0,255,0)
-		
-		
-		
+		# 	if col not in assigned_row:
+		# 		print('new detection',col)
+		# 		tracker = KalmanBoxTracker()
+		# 		tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+
+		# 		self.kalman_tracks.append(tracker)
+
+
+
 		cv2.imshow('window', self.cv_rgb_image)
 		cv2.waitKey(3)	
 
@@ -342,6 +262,14 @@ class Tracker:
 
 	
 
+	def get_measurement(self,object_state_list):
+
+		measurement_list = []
+		for state in object_state_list:
+
+			measurement_list.append(state[0][:4])
+
+		return measurement_list
 
 
 
@@ -391,8 +319,8 @@ class Tracker:
 
 
 
-	def draw(self, uu,vv,ss,rr,ID,blue,green,red):
-
+	def draw(self, uu,vv,ss,rr,ID,color):
+		blue,green,red = color[0],color[1],color[2]
 		xmin, ymin, xmax, ymax = self.get_box_point(uu,vv,ss,rr)		
 		self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(xmin),int(ymin)), (int(xmax),int(ymax)), (blue,green,red))
 
