@@ -173,9 +173,9 @@ class Tracker:
 				a,b,c,d = self.get_box_point(u,v,s,r)
 				aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
 				tracker.save_z(uu,vv,ss,rr)
-				print("$$$$$$$$$$$$$$$$$")
-				print(a,b,c,d)
-				print(aa,bb,cc,dd)
+				# print("$$$$$$$$$$$$$$$$$")
+				# print(a,b,c,d)
+				# print(aa,bb,cc,dd)
 
 			measurement_list = self.get_measurement(self.object_state)
 
@@ -222,7 +222,7 @@ class Tracker:
 				iou_table[idx_kalman][idx_measurement] = self.iou(tracker_box,measuerment_box)
 
 		#iou_table = -iou_table - np.min(-iou_table)
-		return iou_table
+		return -iou_table
 
 	def optimal_assign(self, iou_table,measurement_list):
 		
@@ -249,8 +249,8 @@ class Tracker:
 			s_measurement = measurement_list[col[0]][2]
 			r_measurement = measurement_list[col[0]][3]
 
-		# 	# Matching 
-		# 	self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+			# Matching 
+			self.kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 
 
 		#draw 
@@ -350,9 +350,9 @@ class Tracker:
 
 		box_iou = box(iou_xmin,iou_ymin,iou_xmax,iou_ymax)
 
-		print('box a : ', box_a.xmin, box_a.ymin, box_a.xmax, box_a.ymax)
-		print('box b : ', box_b.xmin, box_b.ymin, box_b.xmax, box_b.ymax)
-		print('box iou : ', box_iou.xmin, box_iou.ymin, box_iou.xmax, box_iou.ymax)
+		# print('box a : ', box_a.xmin, box_a.ymin, box_a.xmax, box_a.ymax)
+		# print('box b : ', box_b.xmin, box_b.ymin, box_b.xmax, box_b.ymax)
+		# print('box iou : ', box_iou.xmin, box_iou.ymin, box_iou.xmax, box_iou.ymax)
 
 		# self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(box_iou.xmin),int(box_iou.ymin))\
 		# 	, (int(box_iou.xmax), int(box_iou.ymax)), (255,255,255),-1)
@@ -369,10 +369,10 @@ class Tracker:
 		    overlapping_region = iou_width * iou_height
 		    combined_region = box_a_area + box_b_area - overlapping_region
 		    IOU = overlapping_region/float(combined_region)
-		    print('IOU : ',IOU)
+		 #   print('IOU : ',IOU)
 		else:
 		    IOU = 0
-		    print('IOU : ',IOU)
+		   # print('IOU : ',IOU)
 
 		
 		return IOU
