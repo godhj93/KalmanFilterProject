@@ -219,7 +219,7 @@ class Tracker:
 			a,b,c,d = self.get_box_point(u,v,s,r)
 			#self.draw(u,v,s,r,'car'+str(tracker.id),tracker.color)
 			uu,vv,ss,rr = tracker.prediction(u,v,s,r)
-			self.draw(uu,vv,ss,rr,'ssssss'+str(tracker.id),tracker.color)
+			#self.draw(uu,vv,ss,rr,'ssssss'+str(tracker.id),tracker.color)
 
 			a,b,c,d = self.get_box_point(u,v,s,r)
 			aa,bb,cc,dd = self.get_box_point(uu,vv,ss,rr)
@@ -321,14 +321,15 @@ class Tracker:
 				kalman_tracks[row].save_z(uu,vv,ss,rr)
 				rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
 				# print('hit',kalman_tracks[row].hit)
+				if kalman_tracks[row].hit < 0:
+			
+					kalman_tracks.remove(kalman_tracks[row])
+					rospy.loginfo("tracker %d has been removed",row)
 	
 		# 	else:
 		# 		pass
 	
-			if kalman_tracks[row].hit < 0:
 			
-				kalman_tracks.remove(kalman_tracks[row])
-				rospy.loginfo("tracker %d has been removed",row)
 		# 	elif self.kalman_tracks[row].hit <= 0 :
 		# 		pass
 
