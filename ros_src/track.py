@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 import rospy
 import cv2
 from std_msgs.msg import String
@@ -228,14 +227,14 @@ class Tracker:
 		
 		# Hungraian algorithm
 
-		print("iou table \n {}".format(iou_table))
+		#print("iou table \n {}".format(iou_table))
 		#print("kalman table \n {}".format())
 		#print("measurement_list \n {}",measurement_list)
 
 		row_ind, col_ind = linear_sum_assignment(iou_table)
 
 		optimal_assignment = iou_table[row_ind,col_ind]
-		print('optimal assign {}\n'.format(optimal_assignment))
+		#print('optimal assign {}\n'.format(optimal_assignment))
 		assigned_col = []
 		assigned_row = []
 	
@@ -262,25 +261,25 @@ class Tracker:
 			self.draw(u,v,s,r,'car' + str(tracker.id), tracker.color)
 
 	 	
-		# # Find unassigned objects	
-		# iou_row_list = np.arange(iou_table.shape[0])
-		# iou_col_list = np.arange(iou_table.shape[1])
+		# Find unassigned objects	
+		iou_row_list = np.arange(iou_table.shape[0])
+		iou_col_list = np.arange(iou_table.shape[1])
 
 		
-		# for row in iou_row_list:
-		# 	if row not in assigned_row:
+		for row in iou_row_list:
+			if row not in assigned_row:
 				
-		# 		self.kalman_tracks[row].hit -= 1
-		# 		rospy.loginfo("tracker [%d]'s hit : %d",row,self.kalman_tracks[row].hit)
-		# 		# print('hit',self.kalman_tracks[row].hit)
+				self.kalman_tracks[row].hit -= 1
+				rospy.loginfo("tracker [%d]'s hit : %d",row,self.kalman_tracks[row].hit)
+				# print('hit',self.kalman_tracks[row].hit)
 	
 		# 	else:
 		# 		pass
 	
-		# 	if not self.kalman_tracks[row] and self.kalman_tracks[row].hit < 0 :
+			if self.kalman_tracks[row].hit < 0 :
 			
-		# 		self.kalman_tracks.remove(self.kalman_tracks[row])
-		# 		rospy.loginfo("tracker [%d] has been removed",row)
+				self.kalman_tracks.remove(self.kalman_tracks[row])
+				rospy.loginfo("tracker [%d] has been removed",row)
 		# 	elif self.kalman_tracks[row].hit <= 0 :
 		# 		pass
 
