@@ -159,7 +159,8 @@ class Tracker:
 
 		else:
 			print('===========================================')
-			print("number of tracker is {}".format(len(self.kalman_tracks)))
+			print("number of real tracker is {}".format(len(self.kalman_tracks)))
+			print("number of temporal tracker is {}".format(len(self.kalman_tracks_new)))
 
 			# Keep going to prediction
 			self.kalman_run(self.kalman_tracks)
@@ -172,9 +173,23 @@ class Tracker:
 			iou_table = self.iou_matching(self.kalman_tracks,measurement_list)			
 			self.optimal_assign(self.kalman_tracks,iou_table,measurement_list)
 
+
 			
-			# iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
-			# self.optimal_assign(self.kalman_tracks_new,iou_table_new,measurement_list)
+			if self.kalman_tracks_new:
+				iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
+				self.optimal_assign(self.kalman_tracks_new,iou_table_new,measurement_list)
+				#print("ioutablenew\n",iou_table_new)
+
+	#draw 
+
+		for tracker in self.kalman_tracks:
+
+			u,v,s,r = tracker.load_z()
+
+			self.draw(u,v,s,r,'car' + str(tracker.id), tracker.color)
+
+		cv2.imshow('window', self.cv_rgb_image)
+		cv2.waitKey(3)	
 
 
 
@@ -209,13 +224,13 @@ class Tracker:
 	def iou_matching(self,kalman_tracks,measurement_list):
 
 		# #IOU matching
-		iou_table = np.zeros(shape=(len(self.kalman_tracks), len(measurement_list)))
+		iou_table = np.zeros(shape=(len(kalman_tracks), len(measurement_list)))
 		#print(iou_table.shape)
 
 		# Create IOU table
 		for idx_measurement,measurement in enumerate(measurement_list):
 
-			for idx_kalman,tracker in enumerate(self.kalman_tracks):
+			for idx_kalman,tracker in enumerate(kalman_tracks):
 				
 				u_tracker ,v_tracker ,s_tracker, r_tracker = tracker.load_z()
 
@@ -240,7 +255,7 @@ class Tracker:
 		
 		# Hungraian algorithm
 
-		print("iou table \n {}".format(iou_table))
+		#print("iou table \n {}".format(iou_table))
 		#print("kalman table \n {}".format())
 		#print("measurement_list \n {}",measurement_list)
 
@@ -266,19 +281,20 @@ class Tracker:
 				pass
 			else:
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
+				#kalman_tracks[row[0]].hit += 1
+				# if kalman_tracks[row[0]].hit >= 15 and kalman_tracks[row[0]] not in self.kalman_tracks:
+				#  	kalman_tracks[row[0]].hit = 15
+				# 	self.kalman_tracks.append(kalman_tracks[row[0]])
 
-				if kalman_tracks[row[0]].hit >= 5:
-					kalman_tracks[row[0]].hit = 15
 
 
+		# #draw 
 
-		#draw 
+		# for tracker in kalman_tracks:
 
-		for tracker in kalman_tracks:
+		# 	u,v,s,r = tracker.load_z()
 
-			u,v,s,r = tracker.load_z()
-
-			self.draw(u,v,s,r,'car' + str(tracker.id), tracker.color)
+		# 	self.draw(u,v,s,r,'car' + str(tracker.id), tracker.color)
 
 	 	
 		# Find unassigned objects	
@@ -290,16 +306,16 @@ class Tracker:
 			if row not in assigned_row:
 				
 				kalman_tracks[row].hit -= 1
-				rospy.loginfo("tracker [%d]'s hit : %d",row,kalman_tracks[row].hit)
+				rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
 				# print('hit',kalman_tracks[row].hit)
 	
 		# 	else:
 		# 		pass
 	
-			if kalman_tracks[row].hit < 0 :
+			if kalman_tracks[row].hit < 0:
 			
 				kalman_tracks.remove(kalman_tracks[row])
-				rospy.loginfo("tracker [%d] has been removed",row)
+				rospy.loginfo("tracker %d has been removed",row)
 		# 	elif self.kalman_tracks[row].hit <= 0 :
 		# 		pass
 
@@ -311,17 +327,15 @@ class Tracker:
 			r_measurement = measurement_list[col][3]
 
 			if col not in assigned_row:
-				print('new detection',col)
+				#print('new detection',col)
 				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+				tracker.hit = 5
+				#self.kalman_tracks_new.append(tracker)
+				
 
-				self.kalman_tracks_new.append(tracker)
-				rospy.logwarn(len(self.kalman_tracks_new))
 
 
-
-		cv2.imshow('window', self.cv_rgb_image)
-		cv2.waitKey(3)	
 
 	def get_measurement(self,object_state_list):
 
@@ -400,39 +414,6 @@ class Tracker:
 
 
 
-	# def iou(self,box_a,box_b):
-		
-		
-	# 	xmin_a, ymin_a, xmax_a, ymax_a = self.get_box_point(box_a[0],box_a[1],box_a[2],box_a[3])
-	# 	xmin_b, ymin_b, xmax_b, ymax_b = self.get_box_point(box_b[0],box_b[1],box_b[2],box_b[3])
-
-
-	# 	box_a_area = np.abs(xmax_a-xmin_a) * np.abs(ymax_a-ymin_a)
-	# 	box_b_area = np.abs(xmax_b-xmin_b) * np.abs(ymax_b-ymin_b)
-		
-		
-	# 	iou_xmin = np.max([xmin_a,xmin_b])
-	# 	iou_ymin = np.max([ymin_a,ymin_b])
-
-	# 	iou_xmax = np.min([xmax_a,xmax_b])
-	# 	iou_ymax = np.min([ymax_a,ymax_b])
-
-
-
-	# 	iou_width = np.abs(iou_xmax-iou_xmin)
-	# 	iou_height = np.abs(iou_ymax-iou_ymin)
-
-	# 	overlapping_region = iou_width * iou_height
-	# 	combined_region = box_a_area + box_b_area - overlapping_region
-
-	# 	#self.cv_rgb_image = cv2.rectangle(self.cv_rgb_image, (int(iou_xmin),int(iou_ymin)), (int(iou_xmax),int(iou_ymax)), (255,255,255),-1)
-		
-		
-	# 	return float(overlapping_region)/float(combined_region)
-		
-
-
-
 	def get_box_point(self,u,v,s,r):
 
 		w = np.sqrt(s*r)
@@ -467,35 +448,35 @@ class Tracker:
 		self.cv_rgb_image = self.bridge.imgmsg_to_cv2(data,'bgr8')
 
 	
-	def kalman(self, states):
+	# def kalman(self, states):
 
 		
-		self.kf.P[4:,4:] *= 10.
-		self.kf.P *= 10.
-		u = states[0][0]
-		v = states[0][1]
-		s = states[0][2]
-		r = states[0][3]
-		ID = states[0][4]
+	# 	self.kf.P[4:,4:] *= 10.
+	# 	self.kf.P *= 10.
+	# 	u = states[0][0]
+	# 	v = states[0][1]
+	# 	s = states[0][2]
+	# 	r = states[0][3]
+	# 	ID = states[0][4]
 
 	
-		x = [u,v,s,r]
-		self.kf.predict(x,)
-		self.kf.update([u,v,s,r])
+	# 	x = [u,v,s,r]
+	# 	self.kf.predict(x,)
+	# 	self.kf.update([u,v,s,r])
 		
 
-		# Kalman filter prediction
+	# 	# Kalman filter prediction
 
-		uu = self.kf.x[0]
-		vv = self.kf.x[1]
-		ss = self.kf.x[2]
-		rr = self.kf.x[3]
-		if ss < 0:
-			ss = 0
-		elif rr < 0:
-			rr = 0
+	# 	uu = self.kf.x[0]
+	# 	vv = self.kf.x[1]
+	# 	ss = self.kf.x[2]
+	# 	rr = self.kf.x[3]
+	# 	if ss < 0:
+	# 		ss = 0
+	# 	elif rr < 0:
+	# 		rr = 0
 
-		return uu,vv,ss,rr,ID
+	# 	return uu,vv,ss,rr,ID
 		
 
 
