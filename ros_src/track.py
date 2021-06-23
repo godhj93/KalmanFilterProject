@@ -176,6 +176,9 @@ class Tracker:
 
 			
 			if self.kalman_tracks_new:
+				for item in self.kalman_tracks_new:
+					print(item.id)
+
 				iou_table_new = self.iou_matching(self.kalman_tracks_new,measurement_list)
 				self.optimal_assign(self.kalman_tracks_new,iou_table_new,measurement_list)
 				#print("ioutablenew\n",iou_table_new)
@@ -282,8 +285,8 @@ class Tracker:
 			else:
 				kalman_tracks[row[0]].save_z(u_measurement, v_measurement, s_measurement, r_measurement)
 				kalman_tracks[row[0]].hit += 1
-				# if kalman_tracks[row[0]].hit >= 15:
-				# 	kalman_tracks[row[0]].hit = 15
+				if kalman_tracks[row[0]].hit >= 15:
+					kalman_tracks[row[0]].hit = 15
 				# 	rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row[0]].id,kalman_tracks[row[0]].hit)
 				# if kalman_tracks[row[0]].hit >= 15 and kalman_tracks[row[0]] not in self.kalman_tracks:
 				#  	kalman_tracks[row[0]].hit = 15
@@ -310,15 +313,18 @@ class Tracker:
 				
 				kalman_tracks[row].hit -= 1
 				rospy.loginfo("car [%d]'s hit : %d",kalman_tracks[row].id,kalman_tracks[row].hit)
+				# if kalman_tracks[row].hit >= 15:
+				# 	kalman_tracks[row].hit = 15
 				# print('hit',kalman_tracks[row].hit)
 	
 		# 	else:
 		# 		pass
-	
-			if kalman_tracks[row].hit < 0:
+		for item in kalman_tracks:
+
+			if item.hit < 0:
 			
-				kalman_tracks.remove(kalman_tracks[row])
-				rospy.loginfo("car %d has been removed",kalman_tracks[row].id)
+				kalman_tracks.remove(item)
+				rospy.loginfo("car %d has been removed",item.id)
 		# 	elif self.kalman_tracks[row].hit <= 0 :
 		# 		pass
 
@@ -331,16 +337,31 @@ class Tracker:
 
 			if col not in assigned_col:
 				#print('new detection',col)
-				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
-				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
-				tracker.hit = 5
-				self.kalman_tracks_new.append(tracker)
+				flag_add = True
+				for item in self.kalman_tracks:
+					u,v,s,r = item.load_z()
+					if (u_measurement,v_measurement,s_measurement,r_measurement) == (u,v,s,r):
+						flag_add = False
+
+				if flag_add == True:
+
+					tracker = KalmanBoxTracker() # <- Tracker dltkdgka
+					tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
+					tracker.hit = 1
+					self.kalman_tracks_new.append(tracker)
 
 		for item in self.kalman_tracks_new:
 
 			if item.hit >= 5 and item not in self.kalman_tracks:
 
 				self.kalman_tracks.append(item)
+				self.kalman_tracks_new.remove(item)
+
+		# for item in self.kalman_tracks_new:
+
+		# 	if item in self.kalman_tracks:
+
+		# 		self.kalman_tracks_new.remove(item)
 
 				
 
