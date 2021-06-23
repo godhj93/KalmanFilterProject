@@ -349,7 +349,7 @@ class Tracker:
 				#print('new detection',col)
 				tracker = KalmanBoxTracker() # <- Tracker dltkdgka
 				tracker.save_z(u_measurement,v_measurement,s_measurement,r_measurement)
-				self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
+				#self.draw(u_measurement,v_measurement,s_measurement,r_measurement,tracker.id,tracker.color)
 				tracker.hit = 0
 				rospy.logwarn("car [%d] has been added  %d col in iou table",tracker.id, col )
 				#self.kalman_tracks_new.append(tracker)
